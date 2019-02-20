@@ -8,6 +8,18 @@
 
 # Temp directry
 *.cydsn/codegentemp/*
+*.cycdx
+*.cyfit
+*.svd
+*.cyprj.*
+*.cywrk.*
 
 # Results
+*.cydsn/CortexM0/*
 *.cydsn/DP8051/*
+*_timing.html
+*.cydsn/Generated_Source/*
+
+# Archives
+Backup/*
+Archive/*
