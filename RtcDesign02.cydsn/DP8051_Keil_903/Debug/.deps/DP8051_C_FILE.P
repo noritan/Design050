@@ -1,0 +1,94 @@
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/CyDmac.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyDmac.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyDmac.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyDmac.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyDmac.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/CyFlash.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/CyLib.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/CySpc.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/LCD.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/LCD_LCDPort.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort_aliases.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cypins.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort_aliases.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cypins.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/LCD_PM.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_PM.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_PM.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/LED3_P6_2.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2_aliases.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cypins.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2_aliases.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/RTC.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/RTC.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/RTC.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/RTC.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/RTC.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/RTC_INT.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyDmac.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LCD_LCDPort_aliases.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/LED3_P6_2_aliases.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/RTC.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter_cfg.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cypins.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/project.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/RTC_INT.c C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/device.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/utils.h 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter_cfg.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/project.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/RTC_INT.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/device.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/utils.h : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/cyPm.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/cyfitter_cfg.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyFlash.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CyLib.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/CySpc.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/PSoC3_8051.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyPm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter_cfg.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter_cfg.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter_cfg.c : 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/DP8051_Keil_903/Debug/cyutils.obj : C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cydevice_trm.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyfitter.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cytypes.h C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyutils.c 
+
+C:/Users/ntan/Documents/PSoC\ Creator/Design050/RtcDesign02.cydsn/Generated_Source/PSoC3/cyutils.c : 
+

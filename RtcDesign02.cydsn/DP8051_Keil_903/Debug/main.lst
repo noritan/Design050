@@ -1,0 +1,288 @@
+C51 COMPILER V9.03   MAIN                                                                  03/09/2016 17:02:31 PAGE 1   
+
+
+C51 COMPILER V9.03, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\DP8051_Keil_903\Debug\main.obj
+COMPILER INVOKED BY: C:\Program Files (x86)\Cypress\PSoC Creator\2.2\PSoC Creator\import\keil\pk51\9.03\C51\BIN\c51.exe 
+                    -.\main.c NOIV LARGE MODDP2 OMF2 VB(1) PR(.\DP8051_Keil_903\Debug\main.lst) DB NOIP OT(5,SIZE) INCDIR(Generated_Source\PS
+                    -oC3) OJ(.\DP8051_Keil_903\Debug\main.obj)
+
+line level    source
+
+   1          /*******************************************************************************
+   2          * File Name: main.c
+   3          *
+   4          * Version: 3.10
+   5          *
+   6          * Description:
+   7          *  This is source code for the datasheet example of the Real Time Clock (RTC)
+   8          *  component.
+   9          *
+  10          *  The PrintDecNumber() function is implemented in the utils.c file. It displays
+  11          *  decimal numbers (first parameter) on a specific row (second parameter) and
+  12          *  column (the third parameter) on the Character LCD component, named LCD. If
+  13          *  the Character LCD component's name is changed it also should be updated in
+  14          *  this function.
+  15          *
+  16          *  There are interrupt stubs in the RTC ISR. The every second interrupt for this
+  17          *  example project is listed below. The active alarm, DST, AM/PM and leap year
+  18          *  statuses renew code is removed from the listing below, as it is the same as
+  19          *  in the main() function and are described above. The only second value update
+  20          *  code is shown below.
+  21          *
+  22          ********************************************************************************
+  23          * Copyright 2012, Cypress Semiconductor Corporation. All rights reserved.
+  24          * This software is owned by Cypress Semiconductor Corporation and is protected
+  25          * by and subject to worldwide patent and copyright laws and treaties.
+  26          * Therefore, you may use this software only as provided in the license agreement
+  27          * accompanying the software package from which you obtained this software.
+  28          * CYPRESS AND ITS SUPPLIERS MAKE NO WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  29          * WITH REGARD TO THIS SOFTWARE, INCLUDING, BUT NOT LIMITED TO, NONINFRINGEMENT,
+  30          * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+  31          *******************************************************************************/
+  32          
+  33          #include <device.h>
+  34          #include "utils.h"
+  35          
+  36          
+  37          /*******************************************************************************
+  38          * Function Name: main
+  39          ********************************************************************************
+  40          *
+  41          * Summary:
+  42          *  Main function performs following functions:
+  43          *   1. Declares date and time structure and fill it with the initial values
+  44          *   2. Enables global interrupts
+  45          *   3. Sets initial time and date values
+  46          *   4. Sets alarm date, time and mask
+  47          *   5. Sets interval mask
+  48          *   6. Sets DST start and stop configuration
+  49          *   7. Prints current date and time values.
+  50          *   8. Afterwards, device is continuosly switched to the Sleep low power mode.
+  51          *      When the 1PPS event occurs device wakes up, ISR is executed and device
+  52          *      is switched to the Sleep mode again till the next 1PPS event. This
+  53          *      applies only to PSoC 3 device.
+C51 COMPILER V9.03   MAIN                                                                  03/09/2016 17:02:31 PAGE 2   
+
+  54          *      For more information refer to the device TRM and System
+  55          *      Reference Guide.
+  56          *
+  57          *   The information on the display is updated in the ISR.
+  58          *
+  59          * Parameters:
+  60          *  None
+  61          *
+  62          * Return:
+  63          *  None
+  64          *
+  65          *******************************************************************************/
+  66          void main()
+  67          {
+  68   1          uint8 tmpVar = 0u;
+  69   1      
+  70   1          RTC_TIME_DATE Start;
+  71   1      
+  72   1          /* Fill struct with date and time */
+  73   1          Start.Sec = 55u;
+  74   1          Start.Min = 59u;
+  75   1          Start.Hour = 22u;
+  76   1          Start.DayOfMonth = 31u;
+  77   1          Start.Month = 12u;
+  78   1          Start.Year = 2007u;
+  79   1      
+  80   1          /* Enable all interrupts */
+  81   1          CyGlobalIntEnable;
+  82   1      
+  83   1          /* Set date and time */
+  84   1          RTC_WriteTime(&Start);
+  85   1      
+  86   1          /* Set alarm date and time */
+  87   1          RTC_WriteAlarmSecond(5u);
+  88   1          RTC_WriteAlarmMinute(3u);
+  89   1          RTC_WriteAlarmHour(1u);
+  90   1          RTC_WriteAlarmDayOfMonth(1u);
+  91   1          RTC_WriteAlarmMonth(1u);
+  92   1          RTC_WriteAlarmYear(2008u);
+  93   1      
+  94   1          /* Set alarm mask */
+  95   1          RTC_WriteAlarmMask(RTC_ALARM_SEC_MASK   | RTC_ALARM_MIN_MASK        |
+  96   1                             RTC_ALARM_HOUR_MASK  | RTC_ALARM_DAYOFMONTH_MASK |
+  97   1                             RTC_ALARM_MONTH_MASK | RTC_ALARM_YEAR_MASK);
+  98   1      
+  99   1          /* Set interval mask - handling of interrupt stubs of the RTC component */
+ 100   1          RTC_WriteIntervalMask(RTC_INTERVAL_SEC_MASK  | RTC_INTERVAL_MIN_MASK   |
+ 101   1                                RTC_INTERVAL_HOUR_MASK | RTC_INTERVAL_DAY_MASK   |
+ 102   1                                RTC_INTERVAL_WEEK_MASK | RTC_INTERVAL_MONTH_MASK |
+ 103   1                                RTC_INTERVAL_YEAR_MASK);
+ 104   1      
+ 105   1          /* DST start configuration */
+ 106   1          RTC_WriteDSTMode(RTC_DST_ENABLE | RTC_DST_FIXDATE);
+ 107   1          RTC_WriteDSTStartHour(23u);
+ 108   1          RTC_WriteDSTStartDayOfMonth(31u);
+ 109   1          RTC_WriteDSTStartMonth(12u);
+ 110   1      
+ 111   1          /* DST stop configuration */
+ 112   1          RTC_WriteDSTStopHour(2u);
+ 113   1          RTC_WriteDSTStopDayOfMonth(1u);
+ 114   1          RTC_WriteDSTStopMonth(1u);
+ 115   1          RTC_WriteDSTOffset(123u);
+C51 COMPILER V9.03   MAIN                                                                  03/09/2016 17:02:31 PAGE 3   
+
+ 116   1      
+ 117   1          /* Start RTC */
+ 118   1          RTC_Start();
+ 119   1      
+ 120   1          /* Start LCD */
+ 121   1          LCD_Start();
+ 122   1      
+ 123   1          /* Prepare 0th column */
+ 124   1          LCD_Position(0u, 0u);
+ 125   1          LCD_PrintString("RTC    :  :  ");
+ 126   1      
+ 127   1          /* Print current time */
+ 128   1          tmpVar = RTC_ReadSecond();
+ 129   1          PrintDecNumber(tmpVar, 0u, 11u);
+ 130   1          tmpVar = RTC_ReadMinute();
+ 131   1          PrintDecNumber(tmpVar, 0u, 8u);
+ 132   1          tmpVar = RTC_ReadHour();
+ 133   1          PrintDecNumber(tmpVar, 0u, 5u);
+ 134   1      
+ 135   1          /* Prepare 1st column */
+ 136   1          LCD_Position(1u, 0u);
+ 137   1          LCD_PrintString("  -  - ");
+ 138   1      
+ 139   1          /* Get and print day of month */
+ 140   1          tmpVar = RTC_ReadDayOfMonth();
+ 141   1          PrintDecNumber(tmpVar, 1u, 0u);
+ 142   1      
+ 143   1          /* Get and print month */
+ 144   1          tmpVar = RTC_ReadMonth();
+ 145   1          PrintDecNumber(tmpVar, 1u, 3u);
+ 146   1      
+ 147   1          /* Get and print year */
+ 148   1          tmpVar = (uint8)(RTC_ReadYear() % 100u);
+ 149   1          PrintDecNumber(tmpVar, 1u, 6u);
+ 150   1      
+ 151   1          /* Get and print day of week */
+ 152   1          tmpVar = RTC_currentTimeDate.DayOfWeek;
+ 153   1          LCD_Position(1u, 9u);
+ 154   1          LCD_PutChar(tmpVar + 0x30u);
+ 155   1      
+ 156   1          /* Get status */
+ 157   1          tmpVar = RTC_ReadStatus();
+ 158   1      
+ 159   1          /* Get and print if year is leap */
+ 160   1          if(RTC_STATUS_LY & tmpVar)
+ 161   1          {
+ 162   2              LCD_Position(1u, 11u);
+ 163   2              LCD_PutChar('L');
+ 164   2          }
+ 165   1          else
+ 166   1          {
+ 167   2              LCD_Position(1u, 11u);
+ 168   2              LCD_PutChar(' ');
+ 169   2          }
+ 170   1      
+ 171   1          /* Get and print daytime AM/PM */
+ 172   1          if(RTC_STATUS_AM_PM & tmpVar)
+ 173   1          {
+ 174   2              LCD_Position(0u, 14u);
+ 175   2              LCD_PrintString("PM");
+ 176   2          }
+ 177   1          else
+C51 COMPILER V9.03   MAIN                                                                  03/09/2016 17:02:31 PAGE 4   
+
+ 178   1          {
+ 179   2              LCD_Position(0u, 14u);
+ 180   2              LCD_PrintString("AM");
+ 181   2          }
+ 182   1      
+ 183   1          /* Get and print DST status */
+ 184   1          if (RTC_STATUS_DST & tmpVar)
+ 185   1          {
+ 186   2              LCD_Position(1u, 13u);
+ 187   2              LCD_PutChar('D');
+ 188   2          }
+ 189   1          else
+ 190   1          {
+ 191   2              LCD_Position(1u, 13u);
+ 192   2              LCD_PutChar(' ');
+ 193   2          }
+ 194   1      
+ 195   1          /* Get and print alarm status */
+ 196   1          if (RTC_STATUS_AA & tmpVar)
+ 197   1          {
+ 198   2              LCD_Position(1u, 15u);
+ 199   2              LCD_PutChar('A');
+ 200   2          }
+ 201   1          else
+ 202   1          {
+ 203   2              LCD_Position(1u, 15u);
+ 204   2              LCD_PutChar(' ');
+ 205   2          }
+ 206   1      
+ 207   1          while(1u)
+ 208   1          {
+ 209   2              /* Make a 100 ms delay */
+ 210   2              CyDelay(100);
+ 211   2      
+ 212   2              #if(CY_PSOC3 || CY_PSOC5LP)
+ 213   2      
+ 214   2                  /* Prepare clock tree configuration for low power mode entry */
+ 215   2                  CyPmSaveClocks();
+ 216   2      
+ 217   2                  #if(CY_PSOC3)
+ 218   2                      /*******************************************************************
+ 219   2                      * Disable RTC interrupt before entering Sleep mode. The device will
+ 220   2                      * wake up on one pulse-per-second event, but the ISR will be
+ 221   2                      * executed when RTC interrupts will be enabled, after the clocks
+ 222   2                      * configuration will be restores. Potentially, this will allow to
+ 223   2                      * execute RTC ISR quicker, as CyPmSaveClocks() function could
+ 224   2                      * decrease master clock frequency. For PSoC 5 architectures
+ 225   2                      * (both PSoC 5 and PSoC 5LP devices), an interrupt is required for
+ 226   2                      * the CPU to wake up, so interrupt is disabled for PSoC3 only.
+ 227   2                      *******************************************************************/
+ 228   2                      RTC_DisableInt();
+ 229   2                  #endif /* (CY_PSOC3) */
+ 230   2      
+ 231   2                  /* Entry Sleep low power mode */
+ 232   2                  CyPmSleep(PM_SLEEP_TIME_NONE, PM_SLEEP_SRC_ONE_PPS);
+ 233   2      
+ 234   2                  /* Restore clock tree configuration */
+ 235   2                  CyPmRestoreClocks();
+ 236   2      
+ 237   2      
+ 238   2                  #if(CY_PSOC3)
+ 239   2                      /*******************************************************************
+C51 COMPILER V9.03   MAIN                                                                  03/09/2016 17:02:31 PAGE 5   
+
+ 240   2                      * Enable RTC interrupt for ISR to be executed on restored clock
+ 241   2                      * frequency.
+ 242   2                      *******************************************************************/
+ 243   2                      RTC_EnableInt();
+ 244   2                  #endif /* (CY_PSOC3) */
+ 245   2      
+ 246   2              #endif /* (CY_PSOC3 || CY_PSOC5LP) */
+ 247   2          }
+ 248   1      }
+ 249          
+ 250          
+ 251          /* [] END OF FILE */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    476    ----
+   CONSTANT SIZE    =     28    ----
+   XDATA SIZE       =   ----      11
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

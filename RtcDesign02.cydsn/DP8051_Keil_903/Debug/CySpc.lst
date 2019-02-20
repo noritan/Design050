@@ -1,0 +1,609 @@
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 1   
+
+
+C51 COMPILER V9.03, COMPILATION OF MODULE CYSPC
+OBJECT MODULE PLACED IN .\DP8051_Keil_903\Debug\CySpc.obj
+COMPILER INVOKED BY: C:\Program Files (x86)\Cypress\PSoC Creator\2.2\PSoC Creator\import\keil\pk51\9.03\C51\BIN\c51.exe 
+                    -.\Generated_Source\PSoC3\CySpc.c NOIV LARGE MODDP2 OMF2 VB(1) PR(.\DP8051_Keil_903\Debug\CySpc.lst) DB NOIP OT(5,SIZE) I
+                    -NCDIR(Generated_Source\PSoC3) OJ(.\DP8051_Keil_903\Debug\CySpc.obj)
+
+line level    source
+
+   1          /*******************************************************************************
+   2          * File Name: CySpc.c
+   3          * Version 3.30
+   4          *
+   5          *  Description:
+   6          *   Provides an API for the System Performance Component.
+   7          *   The SPC functions are not meant to be called directly by the user
+   8          *   application.
+   9          *
+  10          ********************************************************************************
+  11          * Copyright 2008-2012, Cypress Semiconductor Corporation.  All rights reserved.
+  12          * You may use this file only in accordance with the license, terms, conditions,
+  13          * disclaimers, and limitations in the end user license agreement accompanying
+  14          * the software package with which this file was provided.
+  15          *******************************************************************************/
+  16          
+  17          #include "CySpc.h"
+  18          
+  19          #define CY_SPC_KEY_ONE                      (0xB6u)
+  20          #define CY_SPC_KEY_TWO(x)                   ((uint8) (((uint16) 0xD3u) + ((uint16) (x))))
+  21          
+  22          /* Command Codes */
+  23          #define CY_SPC_CMD_LD_BYTE                  (0x00u)
+  24          #define CY_SPC_CMD_LD_MULTI_BYTE            (0x01u)
+  25          #define CY_SPC_CMD_LD_ROW                   (0x02u)
+  26          #define CY_SPC_CMD_RD_BYTE                  (0x03u)
+  27          #define CY_SPC_CMD_RD_MULTI_BYTE            (0x04u)
+  28          #define CY_SPC_CMD_WR_ROW                   (0x05u)
+  29          #define CY_SPC_CMD_WR_USER_NVL              (0x06u)
+  30          #define CY_SPC_CMD_PRG_ROW                  (0x07u)
+  31          #define CY_SPC_CMD_ER_SECTOR                (0x08u)
+  32          #define CY_SPC_CMD_ER_ALL                   (0x09u)
+  33          #define CY_SPC_CMD_RD_HIDDEN                (0x0Au)
+  34          #define CY_SPC_CMD_PRG_PROTECT              (0x0Bu)
+  35          #define CY_SPC_CMD_CHECKSUM                 (0x0Cu)
+  36          #define CY_SPC_CMD_DWNLD_ALGORITHM          (0x0Du)
+  37          #define CY_SPC_CMD_GET_TEMP                 (0x0Eu)
+  38          #define CY_SPC_CMD_GET_ADC                  (0x0Fu)
+  39          #define CY_SPC_CMD_RD_NVL_VOLATILE          (0x10u)
+  40          #define CY_SPC_CMD_SETUP_TS                 (0x11u)
+  41          #define CY_SPC_CMD_DISABLE_TS               (0x12u)
+  42          #define CY_SPC_CMD_ER_ROW                   (0x13u)
+  43          
+  44          /* Enable bit in Active and Alternate Active mode templates */
+  45          #define PM_SPC_PM_EN                        (0x08u)
+  46          
+  47          /* Gate calls to the SPC. */
+  48          uint8 SpcLockState = CY_SPC_UNLOCKED;
+  49          
+  50          
+  51          #if(CY_PSOC5LP)
+              
+                  /***************************************************************************
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 2   
+
+                  * The wait-state pipeline must be enabled prior to accessing the SPC
+                  * register interface regardless of CPU frequency. The CySpcLock() saves
+                  * current wait-state pipeline state and enables it. The CySpcUnlock()
+                  * function, which must be called after SPC transaction, restores original
+                  * state.
+                  ***************************************************************************/
+                  static uint8 spcWaitPipeBypass = 0u;
+              
+              #endif  /* (CY_PSOC5LP) */
+  63          
+  64          
+  65          /*******************************************************************************
+  66          * Function Name: CySpcStart
+  67          ********************************************************************************
+  68          * Summary:
+  69          *  Starts the SPC.
+  70          *
+  71          * Parameters:
+  72          *  None
+  73          *
+  74          * Return:
+  75          *  None
+  76          *
+  77          *******************************************************************************/
+  78          void CySpcStart(void) 
+  79          {
+  80   1          /* Save current global interrupt enable and disable it */
+  81   1          uint8 interruptState = CyEnterCriticalSection();
+  82   1      
+  83   1          CY_SPC_PM_ACT_REG  |= PM_SPC_PM_EN;
+  84   1          CY_SPC_PM_STBY_REG |= PM_SPC_PM_EN;
+  85   1      
+  86   1          /* Restore global interrupt enable state */
+  87   1          CyExitCriticalSection(interruptState);
+  88   1      }
+  89          
+  90          
+  91          /*******************************************************************************
+  92          * Function Name: CySpcStop
+  93          ********************************************************************************
+  94          * Summary:
+  95          *  Stops the SPC.
+  96          *
+  97          * Parameters:
+  98          *  None
+  99          *
+ 100          * Return:
+ 101          *  None
+ 102          *
+ 103          *******************************************************************************/
+ 104          void CySpcStop(void) 
+ 105          {
+ 106   1          /* Save current global interrupt enable and disable it */
+ 107   1          uint8 interruptState = CyEnterCriticalSection();
+ 108   1      
+ 109   1          CY_SPC_PM_ACT_REG  &= ((uint8)(~PM_SPC_PM_EN));
+ 110   1          CY_SPC_PM_STBY_REG &= ((uint8)(~PM_SPC_PM_EN));
+ 111   1      
+ 112   1          /* Restore global interrupt enable state */
+ 113   1          CyExitCriticalSection(interruptState);
+ 114   1      }
+ 115          
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 3   
+
+ 116          
+ 117          /*******************************************************************************
+ 118          * Function Name: CySpcReadData
+ 119          ********************************************************************************
+ 120          * Summary:
+ 121          *  Reads data from the SPC.
+ 122          *
+ 123          * Parameters:
+ 124          *  uint8 buffer:
+ 125          *   Address to store data read.
+ 126          *
+ 127          *  uint8 size:
+ 128          *   Number of bytes to read from the SPC.
+ 129          *
+ 130          * Return:
+ 131          *  uint8:
+ 132          *   The number of bytes read from the SPC.
+ 133          *
+ 134          *******************************************************************************/
+ 135          uint8 CySpcReadData(uint8 buffer[], uint8 size) 
+ 136          {
+ 137   1          uint8 i;
+ 138   1      
+ 139   1          for(i = 0u; i < size; i++)
+ 140   1          {
+ 141   2              while(!CY_SPC_DATA_READY)
+ 142   2              {
+ 143   3                  CyDelayUs(1u);
+ 144   3              }
+ 145   2              buffer[i] = CY_SPC_CPU_DATA_REG;
+ 146   2          }
+ 147   1      
+ 148   1          return(i);
+ 149   1      }
+ 150          
+ 151          
+ 152          /*******************************************************************************
+ 153          * Function Name: CySpcLoadMultiByte
+ 154          ********************************************************************************
+ 155          * Summary:
+ 156          *  Loads 1 to 32 bytes of data into the row latch of a Flash/EEPROM array.
+ 157          *
+ 158          * Parameters:
+ 159          *  uint8 array:
+ 160          *   Id of the array.
+ 161          *
+ 162          *  uint16 address:
+ 163          *   Flash/eeprom addrress
+ 164          *
+ 165          *  uint8* buffer:
+ 166          *   Data to load to the row latch
+ 167          *
+ 168          *  uint16 number:
+ 169          *   Number bytes to load.
+ 170          *
+ 171          * Return:
+ 172          *  CYRET_STARTED
+ 173          *  CYRET_CANCELED
+ 174          *  CYRET_LOCKED
+ 175          *  CYRET_BAD_PARAM
+ 176          *
+ 177          *******************************************************************************/
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 4   
+
+ 178          cystatus CySpcLoadMultiByte(uint8 array, uint16 address, const uint8 buffer[], uint8 size) 
+ 179          {
+ 180   1          cystatus status = CYRET_STARTED;
+ 181   1          uint8 i;
+ 182   1      
+ 183   1          /***************************************************************************
+ 184   1          * Check if number is correct for array. Number must be less than
+ 185   1          * 32 for Flash or less than 16 for EEPROM.
+ 186   1          ***************************************************************************/
+ 187   1          if(((array < CY_SPC_LAST_FLASH_ARRAYID) && (size < 32u)) ||
+ 188   1             ((array > CY_SPC_LAST_FLASH_ARRAYID) && (size < 16u)))
+ 189   1          {
+ 190   2              if(CY_SPC_IDLE)
+ 191   2              {
+ 192   3                  CY_SPC_CPU_DATA_REG = CY_SPC_KEY_ONE;
+ 193   3                  CY_SPC_CPU_DATA_REG = CY_SPC_KEY_TWO(CY_SPC_CMD_LD_MULTI_BYTE);
+ 194   3                  CY_SPC_CPU_DATA_REG = CY_SPC_CMD_LD_MULTI_BYTE;
+ 195   3      
+ 196   3                  if(CY_SPC_BUSY)
+ 197   3                  {
+ 198   4                      CY_SPC_CPU_DATA_REG = array;
+ 199   4                      CY_SPC_CPU_DATA_REG = 1u & HI8(address);
+ 200   4                      CY_SPC_CPU_DATA_REG = LO8(address);
+ 201   4                      CY_SPC_CPU_DATA_REG = ((uint8)(size - 1u));
+ 202   4      
+ 203   4                      for(i = 0u; i < size; i++)
+ 204   4                      {
+ 205   5                          CY_SPC_CPU_DATA_REG = buffer[i];
+ 206   5                      }
+ 207   4                  }
+ 208   3                  else
+ 209   3                  {
+ 210   4                      status = CYRET_CANCELED;
+ 211   4                  }
+ 212   3              }
+ 213   2              else
+ 214   2              {
+ 215   3                  status = CYRET_LOCKED;
+ 216   3              }
+ 217   2          }
+ 218   1          else
+ 219   1          {
+ 220   2              status = CYRET_BAD_PARAM;
+ 221   2          }
+ 222   1      
+ 223   1          return(status);
+ 224   1      }
+ 225          
+ 226          
+ 227          /*******************************************************************************
+ 228          * Function Name: CySpcLoadRow
+ 229          ********************************************************************************
+ 230          * Summary:
+ 231          *  Loads a row of data into the row latch of a Flash/EEPROM array.
+ 232          *
+ 233          * Parameters:
+ 234          *  uint8 array:
+ 235          *   Id of the array.
+ 236          *
+ 237          *  uint8* buffer:
+ 238          *   Data to be loaded to the row latch
+ 239          *
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 5   
+
+ 240          *  uint8 size:
+ 241          *   The number of data bytes that the SPC expects to be written. Depends on the
+ 242          *   type of the array and, if the array is Flash, whether ECC is being enabled
+ 243          *   or not. There are following values: flash row latch size with ECC enabled,
+ 244          *   flash row latch size with ECC disabled and EEPROM row latch size.
+ 245          *
+ 246          * Return:
+ 247          *  CYRET_STARTED
+ 248          *  CYRET_CANCELED
+ 249          *  CYRET_LOCKED
+ 250          *
+ 251          *******************************************************************************/
+ 252          cystatus CySpcLoadRow(uint8 array, const uint8 buffer[], uint16 size)
+ 253          {
+ 254   1          cystatus status = CYRET_STARTED;
+ 255   1          uint16 i;
+ 256   1      
+ 257   1          /* Make sure the SPC is ready to accept command */
+ 258   1          if(CY_SPC_IDLE)
+ 259   1          {
+ 260   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_ONE;
+ 261   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_TWO(CY_SPC_CMD_LD_ROW);
+ 262   2              CY_SPC_CPU_DATA_REG = CY_SPC_CMD_LD_ROW;
+ 263   2      
+ 264   2              /* Make sure the command was accepted */
+ 265   2              if(CY_SPC_BUSY)
+ 266   2              {
+ 267   3                  CY_SPC_CPU_DATA_REG = array;
+ 268   3      
+ 269   3                  for(i = 0u; i < size; i++)
+ 270   3                  {
+ 271   4                      CY_SPC_CPU_DATA_REG = buffer[i];
+ 272   4                  }
+ 273   3              }
+ 274   2              else
+ 275   2              {
+ 276   3                  status = CYRET_CANCELED;
+ 277   3              }
+ 278   2          }
+ 279   1          else
+ 280   1          {
+ 281   2              status = CYRET_LOCKED;
+ 282   2          }
+ 283   1      
+ 284   1          return(status);
+ 285   1      }
+ 286          
+ 287          
+ 288          /*******************************************************************************
+ 289          * Function Name: CySpcWriteRow
+ 290          ********************************************************************************
+ 291          * Summary:
+ 292          *  Erases then programs a row in Flash/EEPROM with data in row latch.
+ 293          *
+ 294          * Parameters:
+ 295          *  uint8 array:
+ 296          *   Id of the array.
+ 297          *
+ 298          *  uint16 address:
+ 299          *   flash/eeprom addrress
+ 300          *
+ 301          *  uint8 tempPolarity:
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 6   
+
+ 302          *   temperature polarity.
+ 303          *   1: the Temp Magnitude is interpreted as a positive value
+ 304          *   0: the Temp Magnitude is interpreted as a negative value
+ 305          *
+ 306          *  uint8 tempMagnitude:
+ 307          *   temperature magnitude.
+ 308          *
+ 309          * Return:
+ 310          *  CYRET_STARTED
+ 311          *  CYRET_CANCELED
+ 312          *  CYRET_LOCKED
+ 313          *
+ 314          *******************************************************************************/
+ 315          cystatus CySpcWriteRow(uint8 array, uint16 address, uint8 tempPolarity, uint8 tempMagnitude)
+ 316          {
+ 317   1          cystatus status = CYRET_STARTED;
+ 318   1      
+ 319   1          /* Make sure the SPC is ready to accept command */
+ 320   1          if(CY_SPC_IDLE)
+ 321   1          {
+ 322   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_ONE;
+ 323   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_TWO(CY_SPC_CMD_WR_ROW);
+ 324   2              CY_SPC_CPU_DATA_REG = CY_SPC_CMD_WR_ROW;
+ 325   2      
+ 326   2              /* Make sure the command was accepted */
+ 327   2              if(CY_SPC_BUSY)
+ 328   2              {
+ 329   3                  CY_SPC_CPU_DATA_REG = array;
+ 330   3                  CY_SPC_CPU_DATA_REG = HI8(address);
+ 331   3                  CY_SPC_CPU_DATA_REG = LO8(address);
+ 332   3                  CY_SPC_CPU_DATA_REG = tempPolarity;
+ 333   3                  CY_SPC_CPU_DATA_REG = tempMagnitude;
+ 334   3              }
+ 335   2              else
+ 336   2              {
+ 337   3                  status = CYRET_CANCELED;
+ 338   3              }
+ 339   2          }
+ 340   1          else
+ 341   1          {
+ 342   2              status = CYRET_LOCKED;
+ 343   2          }
+ 344   1      
+ 345   1          return(status);
+ 346   1      }
+ 347          
+ 348          
+ 349          /*******************************************************************************
+ 350          * Function Name: CySpcEraseSector
+ 351          ********************************************************************************
+ 352          * Summary:
+ 353          *  Erases all data in the addressed sector (block of 64 rows).
+ 354          *
+ 355          * Parameters:
+ 356          *  uint8 array:
+ 357          *   Id of the array.
+ 358          *
+ 359          *  uint8 sectorNumber:
+ 360          *   Zero based sector number within Flash/EEPROM array
+ 361          *
+ 362          * Return:
+ 363          *  CYRET_STARTED
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 7   
+
+ 364          *  CYRET_CANCELED
+ 365          *  CYRET_LOCKED
+ 366          *
+ 367          *******************************************************************************/
+ 368          cystatus CySpcEraseSector(uint8 array, uint8 sectorNumber)
+ 369          {
+ 370   1          cystatus status = CYRET_STARTED;
+ 371   1      
+ 372   1          /* Make sure the SPC is ready to accept command */
+ 373   1          if(CY_SPC_IDLE)
+ 374   1          {
+ 375   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_ONE;
+ 376   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_TWO(CY_SPC_CMD_ER_SECTOR);
+ 377   2              CY_SPC_CPU_DATA_REG = CY_SPC_CMD_ER_SECTOR;
+ 378   2      
+ 379   2              /* Make sure the command was accepted */
+ 380   2              if(CY_SPC_BUSY)
+ 381   2              {
+ 382   3                  CY_SPC_CPU_DATA_REG = array;
+ 383   3                  CY_SPC_CPU_DATA_REG = sectorNumber;
+ 384   3              }
+ 385   2              else
+ 386   2              {
+ 387   3                  status = CYRET_CANCELED;
+ 388   3              }
+ 389   2          }
+ 390   1          else
+ 391   1          {
+ 392   2              status = CYRET_LOCKED;
+ 393   2          }
+ 394   1      
+ 395   1          return(status);
+ 396   1      }
+ 397          
+ 398          
+ 399          /*******************************************************************************
+ 400          * Function Name: CySpcGetTemp
+ 401          ********************************************************************************
+ 402          * Summary:
+ 403          *  Returns the internal die temperature
+ 404          *
+ 405          * Parameters:
+ 406          *  uint8 numSamples:
+ 407          *   Number of samples. Valid values are 1-5, resulting in 2 - 32 samples
+ 408          *   respectively.
+ 409          *
+ 410          * uint16 timerPeriod:
+ 411          *   Number of ADC ACLK cycles. A valid 14 bit value is accepted, higher 2 bits
+ 412          *   of 16 bit values are ignored.
+ 413          *
+ 414          * uint8 clkDivSelect:
+ 415          *   ADC ACLK clock divide value. Valid values are 2 - 225.
+ 416          *
+ 417          * Return:
+ 418          *  CYRET_STARTED
+ 419          *  CYRET_CANCELED
+ 420          *  CYRET_LOCKED
+ 421          *
+ 422          *******************************************************************************/
+ 423          #if(CY_PSOC5A)
+              cystatus CySpcGetTemp(uint8 numSamples, uint16 timerPeriod, uint8 clkDivSelect)
+              #else
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 8   
+
+ 426          cystatus CySpcGetTemp(uint8 numSamples)
+ 427          #endif  /* (CY_PSOC5A) */
+ 428          {
+ 429   1          cystatus status = CYRET_STARTED;
+ 430   1      
+ 431   1          /* Make sure the SPC is ready to accept command */
+ 432   1          if(CY_SPC_IDLE)
+ 433   1          {
+ 434   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_ONE;
+ 435   2              CY_SPC_CPU_DATA_REG = CY_SPC_KEY_TWO(CY_SPC_CMD_GET_TEMP);
+ 436   2              CY_SPC_CPU_DATA_REG = CY_SPC_CMD_GET_TEMP;
+ 437   2      
+ 438   2              /* Make sure the command was accepted */
+ 439   2              if(CY_SPC_BUSY)
+ 440   2              {
+ 441   3                  CY_SPC_CPU_DATA_REG = numSamples;
+ 442   3      
+ 443   3                  #if(CY_PSOC5A)
+                              CY_SPC_CPU_DATA_REG = HI8(timerPeriod);
+                              CY_SPC_CPU_DATA_REG = LO8(timerPeriod);
+                              CY_SPC_CPU_DATA_REG = clkDivSelect;
+                          #endif  /* (CY_PSOC5A) */
+ 448   3              }
+ 449   2              else
+ 450   2              {
+ 451   3                  status = CYRET_CANCELED;
+ 452   3              }
+ 453   2          }
+ 454   1          else
+ 455   1          {
+ 456   2              status = CYRET_LOCKED;
+ 457   2          }
+ 458   1      
+ 459   1          return(status);
+ 460   1      }
+ 461          
+ 462          
+ 463          /*******************************************************************************
+ 464          * Function Name: CySpcLock
+ 465          ********************************************************************************
+ 466          * Summary:
+ 467          *  Locks the SPC so it can not be used by someone else:
+ 468          *   - Saves wait-pipeline enable state and enable pipeline (PSoC5)
+ 469          *
+ 470          * Parameters:
+ 471          *  Note
+ 472          *
+ 473          * Return:
+ 474          *  CYRET_SUCCESS - if the resource was free.
+ 475          *  CYRET_LOCKED  - if the SPC is in use.
+ 476          *
+ 477          *******************************************************************************/
+ 478          cystatus CySpcLock(void)
+ 479          {
+ 480   1          cystatus status = CYRET_LOCKED;
+ 481   1          uint8 interruptState;
+ 482   1      
+ 483   1          /* Enter critical section */
+ 484   1          interruptState = CyEnterCriticalSection();
+ 485   1      
+ 486   1          if(CY_SPC_UNLOCKED == SpcLockState)
+ 487   1          {
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 9   
+
+ 488   2              SpcLockState = CY_SPC_LOCKED;
+ 489   2              status = CYRET_SUCCESS;
+ 490   2      
+ 491   2              #if(CY_PSOC5LP)
+              
+                          if(0u != (CY_SPC_CPU_WAITPIPE_REG & CY_SPC_CPU_WAITPIPE_BYPASS))
+                          {
+                              /* Enable pipeline registers */
+                              CY_SPC_CPU_WAITPIPE_REG &= ((uint32)(~CY_SPC_CPU_WAITPIPE_BYPASS));
+              
+                              /* At least 2 NOP instructions are recommended */
+                              CY_NOP;
+                              CY_NOP;
+                              CY_NOP;
+              
+                              spcWaitPipeBypass = CY_SPC_CPU_WAITPIPE_BYPASS;
+                          }
+              
+                      #endif  /* (CY_PSOC5LP) */
+ 507   2          }
+ 508   1      
+ 509   1          /* Exit critical section */
+ 510   1          CyExitCriticalSection(interruptState);
+ 511   1      
+ 512   1          return(status);
+ 513   1      }
+ 514          
+ 515          
+ 516          /*******************************************************************************
+ 517          * Function Name: CySpcUnlock
+ 518          ********************************************************************************
+ 519          * Summary:
+ 520          *  Unlocks the SPC so it can be used by someone else:
+ 521          *   - Restores wait-pipeline enable state (PSoC5)
+ 522          *
+ 523          * Parameters:
+ 524          *  None
+ 525          *
+ 526          * Return:
+ 527          *  None
+ 528          *
+ 529          *******************************************************************************/
+ 530          void CySpcUnlock(void)
+ 531          {
+ 532   1          uint8 interruptState;
+ 533   1      
+ 534   1          /* Enter critical section */
+ 535   1          interruptState = CyEnterCriticalSection();
+ 536   1      
+ 537   1          /* Release the SPC object */
+ 538   1          SpcLockState = CY_SPC_UNLOCKED;
+ 539   1      
+ 540   1          #if(CY_PSOC5LP)
+              
+                      if(CY_SPC_CPU_WAITPIPE_BYPASS == spcWaitPipeBypass)
+                      {
+                          /* Force to bypass pipeline registers */
+                          CY_SPC_CPU_WAITPIPE_REG |= CY_SPC_CPU_WAITPIPE_BYPASS;
+              
+                          /* At least 2 NOP instructions are recommended */
+                          CY_NOP;
+                          CY_NOP;
+C51 COMPILER V9.03   CYSPC                                                                 03/09/2016 17:02:33 PAGE 10  
+
+                          CY_NOP;
+              
+                          spcWaitPipeBypass = 0u;
+                      }
+              
+                  #endif  /* (CY_PSOC5LP) */
+ 556   1      
+ 557   1          /* Exit critical section */
+ 558   1          CyExitCriticalSection(interruptState);
+ 559   1      }
+ 560          
+ 561          
+ 562          /* [] END OF FILE */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    615    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =      1      25
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

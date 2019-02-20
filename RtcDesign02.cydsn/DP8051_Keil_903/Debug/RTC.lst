@@ -1,0 +1,2621 @@
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 1   
+
+
+C51 COMPILER V9.03, COMPILATION OF MODULE RTC
+OBJECT MODULE PLACED IN .\DP8051_Keil_903\Debug\RTC.obj
+COMPILER INVOKED BY: C:\Program Files (x86)\Cypress\PSoC Creator\2.2\PSoC Creator\import\keil\pk51\9.03\C51\BIN\c51.exe 
+                    -.\Generated_Source\PSoC3\RTC.c NOIV LARGE MODDP2 OMF2 VB(1) PR(.\DP8051_Keil_903\Debug\RTC.lst) DB NOIP OT(5,SIZE) INCDI
+                    -R(Generated_Source\PSoC3) OJ(.\DP8051_Keil_903\Debug\RTC.obj)
+
+line level    source
+
+   1          /*******************************************************************************
+   2          * File Name: RTC.c
+   3          * Version 1.80
+   4          *
+   5          * Description:
+   6          *  This file provides the source code to the API for the RTC Component.
+   7          *
+   8          ********************************************************************************
+   9          * Copyright 2008-2012, Cypress Semiconductor Corporation.  All rights reserved.
+  10          * You may use this file only in accordance with the license, terms, conditions,
+  11          * disclaimers, and limitations in the end user license agreement accompanying
+  12          * the software package with which this file was provided.
+  13          *******************************************************************************/
+  14          
+  15          #include "RTC.h"
+  16          #include "CyLib.h"
+  17          
+  18          /* Function Prototypes */
+  19          void RTC_SetInitValues(void) ;
+  20          uint8 RTC_DayOfWeek(uint8, uint8, uint16) ;
+  21          
+  22          /* Variables were not initialized */
+  23          uint8 RTC_initVar = 0u;
+  24          
+  25          /* Time and date variables 
+  26          * Initial value are: Second = 0-59, minute = 0-59, hour = 0-23, DayOfWeek = 1-7,
+  27          * DayOfMonth = 1-31, DayOfYear = 1?366, Month = 1-12, Year = 1900?2200.
+  28          */
+  29          RTC_TIME_DATE      RTC_currentTimeDate = {0u, 0u, 0u, 1u, 1u, 1u, 1u, 1900u};
+  30          
+  31          /* Alarm time and date variables
+  32          * Initial value are: Second = 0-59, minute = 0-59, hour = 0-23, DayOfWeek = 1-7,
+  33          * DayOfMonth = 1-31, DayOfYear = 1?366, Month = 1-12, Year = 1900?2200.
+  34          */
+  35          RTC_TIME_DATE RTC_alarmCfgTimeDate = {0u, 0u, 0u, 1u, 1u, 1u, 1u, 1900u};
+  36          
+  37          #if(1u == RTC_DST_FUNC_ENABLE) /* DST enabled */
+  38          
+  39              /* Define DST format: '0' - fixed, '1' - relative */
+  40              volatile uint8   RTC_dstModeType = 0u;
+  41              
+  42              /* Hour 0-23, DayOfWeek 1-7, Week 1-5, DayOfMonth 1-31, Month 1-12  */
+  43              RTC_DSTIME RTC_dstTimeDateStart = {0u, 1u, 1u, 1u, 1u};
+  44              RTC_DSTIME RTC_dstTimeDateStop =  {0u, 1u, 1u, 1u, 1u};
+  45          
+  46              /* Number of Hours to add/dec to time */
+  47              volatile uint8   RTC_dstOffsetMin = 0u;
+  48              volatile uint8   RTC_dstStartStatus = 0u;
+  49              volatile uint8   RTC_dstStopStatus = 0u;
+  50          
+  51          #endif /* 1u == RTC_DST_FUNC_ENABLE*/
+  52          
+  53          /* Mask Registers */
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 2   
+
+  54          volatile uint8   RTC_alarmCfgMask = 0u;
+  55          volatile uint8   RTC_alarmCurStatus = 0u;
+  56          volatile uint8   RTC_intervalCfgMask = 0u;
+  57          
+  58          /* Status & Control Variables */
+  59          volatile uint8   RTC_statusDateTime = 0u;
+  60          
+  61          /* Month Day Array - number of days in the months */
+  62          const uint8 CYCODE RTC_daysInMonths[RTC_MONTHS_IN_YEAR] = {
+  63              RTC_DAYS_IN_JANUARY,
+  64              RTC_DAYS_IN_FEBRUARY,
+  65              RTC_DAYS_IN_MARCH,
+  66              RTC_DAYS_IN_APRIL,
+  67              RTC_DAYS_IN_MAY,
+  68              RTC_DAYS_IN_JUNE,
+  69              RTC_DAYS_IN_JULY,
+  70              RTC_DAYS_IN_AUGUST,
+  71              RTC_DAYS_IN_SEPTEMBER,
+  72              RTC_DAYS_IN_OCTOBER,
+  73              RTC_DAYS_IN_NOVEMBER,
+  74              RTC_DAYS_IN_DECEMBER};
+  75          
+  76          /* Calculated sequence (31 * month )/ 12 ) mod 7 from the Zeller's congruence */
+  77           const uint8 CYCODE RTC_monthTemplate[RTC_MONTHS_IN_YEAR] = \
+  78                                                                  {0u, 3u, 2u, 5u, 0u, 3u, 5u, 1u, 4u, 6u, 2u, 4u};
+  79          
+  80          
+  81          /*******************************************************************************
+  82          * Function Name:   RTC_Start
+  83          ********************************************************************************
+  84          *
+  85          * Summary:
+  86          *  Enables RTC component: configurate counter, setup interrupts, done all
+  87          *  requered calculation and starts counter.
+  88          *
+  89          * Parameters:
+  90          *  None.
+  91          *
+  92          * Return:
+  93          *  None.
+  94          *
+  95          * Global variables:
+  96          *  RTC_initVar: global variable is used to indicate initial
+  97          *  configuration of this component.  The variable is initialized to zero and set
+  98          *  to 1 the first time RTC_Start() is called. This allows for
+  99          *  component initialization without re-initialization in all subsequent calls
+ 100          *  to the RTC_Start() routine.
+ 101          *
+ 102          *  RTC_currentTimeDate, RTC_dstTimeDateStart, 
+ 103          *  RTC_dstTimeDateStop, RTC_dstTimeDateStart,
+ 104          *  RTC_alarmCfgTimeDate, RTC_statusDateTime,
+ 105          *  RTC_dstStartStatus, RTC_dstStopStatus, 
+ 106          *  RTC_alarmCurStatus: global variables are modified by the 
+ 107          *  functions called from RTC_Init().
+ 108          *
+ 109          * Reentrant:
+ 110          *  No.
+ 111          *
+ 112          * Side Effects:
+ 113          *  Enables for the one pulse per second (for the RTC component) and 
+ 114          *  Central Time Wheel (for the Sleep Timer component) signals to wake up device
+ 115          *  from the low power (Sleep and Alternate Active) modes and leaves them
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 3   
+
+ 116          *  enabled.
+ 117          *
+ 118          *  The Power Manager API has the higher priority on resource usage: it is NOT
+ 119          *  guaranteed that the Sleep Timer's configuration will be the same on exit
+ 120          *  from the Power Manager APIs as on the entry. To prevent this use the Sleep
+ 121          *  Timer's Sleep() - to save configuration and stop the component and Wakeup()
+ 122          *  function to restore configuration and enable the component.
+ 123          *
+ 124          *  The Sleep Timer and Real Time Clock (RTC) components could be configured as
+ 125          *  a wake up source from the low power modes only both at once.
+ 126          *
+ 127          *******************************************************************************/
+ 128          void RTC_Start(void) 
+ 129          {
+ 130   1          /* Execute once in normal flow */
+ 131   1          if(0u == RTC_initVar)
+ 132   1          {
+ 133   2              RTC_Init();
+ 134   2              RTC_initVar = 1u;
+ 135   2          }
+ 136   1      
+ 137   1          /* Enable component's operation */
+ 138   1          RTC_Enable();
+ 139   1      }
+ 140          
+ 141          
+ 142          /*******************************************************************************
+ 143          * Function Name: RTC_Stop
+ 144          ********************************************************************************
+ 145          *
+ 146          * Summary:
+ 147          *  Stops the RTC component.
+ 148          *
+ 149          * Parameters:
+ 150          *  None.
+ 151          *
+ 152          * Return:
+ 153          *  None.
+ 154          *
+ 155          * Side Effects:
+ 156          *  Leaves the one pulse per second (for the RTC component) and the Central Time
+ 157          *  Wheel (for the Sleep Timer component) signals to wake up device from the low
+ 158          *  power (Sleep and Alternate Active) modes enabled after Sleep Time component
+ 159          *  is stopped. 
+ 160          *
+ 161          *******************************************************************************/
+ 162          void RTC_Stop(void) 
+ 163          {
+ 164   1          uint8 interruptState;
+ 165   1              
+ 166   1              /* Disable the interrupt. */
+ 167   1          CyIntDisable(RTC_ISR_NUMBER);
+ 168   1      
+ 169   1          /* Enter critical section */
+ 170   1          interruptState = CyEnterCriticalSection();
+ 171   1      
+ 172   1          /* Stop one pulse per second counter and interrupt */
+ 173   1          RTC_OPPS_CFG_REG &= ~(RTC_OPPSIE_EN_MASK | RTC_OPPS_EN_MASK);
+ 174   1              
+ 175   1          /* Exit critical section */
+ 176   1          CyExitCriticalSection(interruptState);
+ 177   1      }
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 4   
+
+ 178          
+ 179          
+ 180          /*******************************************************************************
+ 181          * Function Name:   RTC_EnableInt
+ 182          ********************************************************************************
+ 183          *
+ 184          * Summary:
+ 185          *  Enables interrupts of RTC Component.
+ 186          *
+ 187          * Parameters:
+ 188          *  None.
+ 189          *
+ 190          * Return:
+ 191          *  None.
+ 192          *
+ 193          *******************************************************************************/
+ 194          void RTC_EnableInt(void) 
+ 195          {
+ 196   1          /* Enable the interrupt */
+ 197   1          CyIntEnable(RTC_ISR_NUMBER);
+ 198   1      }
+ 199          
+ 200          
+ 201          /*******************************************************************************
+ 202          * Function Name:   RTC_DisableInt
+ 203          ********************************************************************************
+ 204          *
+ 205          * Summary:
+ 206          *  Disables interrupts of RTC Component, time and date stop running.
+ 207          *
+ 208          * Parameters:
+ 209          *  None.
+ 210          *
+ 211          * Return:
+ 212          *  None.
+ 213          *
+ 214          *******************************************************************************/
+ 215          void RTC_DisableInt(void) 
+ 216          {
+ 217   1          /* Disable the interrupt. */
+ 218   1          CyIntDisable(RTC_ISR_NUMBER);
+ 219   1      }
+ 220          
+ 221          
+ 222          #if (1u == RTC_DST_FUNC_ENABLE)
+ 223              /*******************************************************************************
+ 224              * Function Name:   RTC_DSTDateConversion
+ 225              ********************************************************************************
+ 226              *
+ 227              * Summary:
+ 228              * Converts relative to absolute date.
+ 229              *
+ 230              * Parameters:
+ 231                  *  None.
+ 232              *
+ 233              * Return:
+ 234                  *  None.
+ 235              *
+ 236              * Global variables:
+ 237              *  RTC_dstTimeDateStart.Month, 
+ 238              *  RTC_dstTimeDateStart.DayOfWeek,
+ 239              *  RTC_dstTimeDateStart.Week,
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 5   
+
+ 240              *  RTC_dstTimeDateStop.Month,
+ 241              *  RTC_dstTimeDateStop.DayOfWeek,
+ 242              *  RTC_dstTimeDateStop.Week,
+ 243                  *  RTC_currentTimeDate.Year: these global variables are
+ 244                  *  used to correct day of week.
+ 245                  *
+ 246              *  RTC_dstTimeDateStart.DayOfMonth,
+ 247              *  RTC_dstTimeDateStop.DayOfMonth: these global variables are
+ 248                  *  modified after convertion.
+ 249                  *
+ 250                  * Reentrant:
+ 251              *  No.
+ 252              *
+ 253              *******************************************************************************/
+ 254              void RTC_DSTDateConversion(void) 
+ 255              {
+ 256   1              uint8 week = 1u;
+ 257   1              uint8 day = 1u;
+ 258   1              uint8 dayOfWeek;
+ 259   1      
+ 260   1              /* Get day of week   */
+ 261   1              dayOfWeek = RTC_DayOfWeek(day, \
+ 262   1                                            RTC_dstTimeDateStart.Month, \
+ 263   1                                            RTC_currentTimeDate.Year) + 1u;
+ 264   1      
+ 265   1              /* Normalize day of week */
+ 266   1              if(dayOfWeek > RTC_START_OF_WEEK)
+ 267   1              {
+ 268   2                  dayOfWeek -= RTC_START_OF_WEEK;
+ 269   2              }
+ 270   1              else
+ 271   1              {
+ 272   2                  dayOfWeek = RTC_DAYS_IN_WEEK - (RTC_START_OF_WEEK - dayOfWeek);
+ 273   2              }
+ 274   1      
+ 275   1              /* Correct if out of DST range */
+ 276   1              while(dayOfWeek != RTC_dstTimeDateStart.DayOfWeek)
+ 277   1              {
+ 278   2                  day++;
+ 279   2                  dayOfWeek++;
+ 280   2                  if (dayOfWeek > RTC_WEEK_ELAPSED)
+ 281   2                  {
+ 282   3                      dayOfWeek = 1u;
+ 283   3                      week++;
+ 284   3                  }
+ 285   2              }
+ 286   1      
+ 287   1              while(week != RTC_dstTimeDateStart.Week)
+ 288   1              {
+ 289   2                  day += RTC_DAYS_IN_WEEK;
+ 290   2                  week++;
+ 291   2              }
+ 292   1              RTC_dstTimeDateStart.DayOfMonth = day;
+ 293   1      
+ 294   1              /* Stop of DST time */
+ 295   1              week = 1u;
+ 296   1              day = 1u;
+ 297   1      
+ 298   1              dayOfWeek = RTC_DayOfWeek(day, RTC_dstTimeDateStop.Month, \
+ 299   1                                                          RTC_currentTimeDate.Year) + 1u;
+ 300   1      
+ 301   1              if(dayOfWeek > RTC_START_OF_WEEK)
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 6   
+
+ 302   1              {
+ 303   2                  dayOfWeek -= RTC_START_OF_WEEK;
+ 304   2              }
+ 305   1              else
+ 306   1              {
+ 307   2                  dayOfWeek = RTC_DAYS_IN_WEEK - (RTC_START_OF_WEEK - dayOfWeek);
+ 308   2              }
+ 309   1      
+ 310   1              while(dayOfWeek != RTC_dstTimeDateStop.DayOfWeek)
+ 311   1              {
+ 312   2                  day++;
+ 313   2                  dayOfWeek++;
+ 314   2                  if (dayOfWeek > RTC_WEEK_ELAPSED)
+ 315   2                  {
+ 316   3                      dayOfWeek = 1u;
+ 317   3                      week++;
+ 318   3                  }
+ 319   2              }
+ 320   1      
+ 321   1              while(week != RTC_dstTimeDateStop.Week)
+ 322   1              {
+ 323   2                  day += RTC_DAYS_IN_WEEK;
+ 324   2                  week++;
+ 325   2              }
+ 326   1      
+ 327   1              RTC_dstTimeDateStop.DayOfMonth = day;
+ 328   1          }
+ 329          #endif /* 1u == RTC_DST_FUNC_ENABLE */
+ 330          
+ 331          
+ 332          /*******************************************************************************
+ 333          * Function Name:   RTC_Init
+ 334          ********************************************************************************
+ 335          *
+ 336          * Summary:
+ 337          *  Calculates required date and flags, sets interrupt vector and priority.
+ 338          *
+ 339          * Parameters:
+ 340          *  None.
+ 341          *
+ 342          * Return:
+ 343          *  None.
+ 344          *
+ 345          * Global variables:
+ 346          *  RTC_currentTimeDate, RTC_dstTimeDateStart, 
+ 347          *  RTC_dstTimeDateStop, RTC_dstTimeDateStart,
+ 348          *  RTC_alarmCfgTimeDate, RTC_statusDateTime,
+ 349          *  RTC_dstStartStatus, RTC_dstStartStatus,
+ 350          *  RTC_dstStopStatus, RTC_alarmCurStatus: 
+ 351          *  global variables are used by the RTC_SetInitValues().
+ 352          *
+ 353          *  RTC_dstTimeDateStart, RTC_currentTimeDate:
+ 354          *  RTC_statusDateTime, RTC_dstStartStatus, 
+ 355          *  RTC_dstStartStatus, RTC_dstStopStatus, 
+ 356          *  RTC_alarmCurStatus: are modified by the 
+ 357          *  RTC_SetInitValues() function.
+ 358          *
+ 359          * Reentrant:
+ 360          *  No.
+ 361          *
+ 362          *******************************************************************************/
+ 363          void RTC_Init(void) 
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 7   
+
+ 364          {
+ 365   1          /* Start calculation of required date and flags */
+ 366   1          RTC_SetInitValues();
+ 367   1      
+ 368   1          /* Disable Interrupt. */
+ 369   1          CyIntDisable(RTC_ISR_NUMBER);
+ 370   1      
+ 371   1          /* Set the ISR to point to the RTC_SUT_isr Interrupt. */
+ 372   1          CyIntSetVector(RTC_ISR_NUMBER, RTC_ISR);
+ 373   1      
+ 374   1          /* Set the priority. */
+ 375   1          CyIntSetPriority(RTC_ISR_NUMBER, RTC_ISR_PRIORITY);
+ 376   1      }
+ 377          
+ 378          
+ 379          /*******************************************************************************
+ 380          * Function Name: RTC_Enable
+ 381          ********************************************************************************
+ 382          *
+ 383          * Summary:
+ 384          *  Enables the interrupts, one pulse per second and interrupt generation on OPPS
+ 385          *  event.
+ 386          *
+ 387          * Parameters:
+ 388          *  None.
+ 389          *
+ 390          * Return:
+ 391          *  None.
+ 392          *
+ 393          * Side Effects:
+ 394          *  Enables for the one pulse per second and cetral time wheel signals to wake up
+ 395          *  device from the low power (Sleep and Alternate Active) modes and leaves them
+ 396          *  enabled.
+ 397          *
+ 398          *******************************************************************************/
+ 399          void RTC_Enable(void) 
+ 400          {
+ 401   1              uint8 interruptState;
+ 402   1      
+ 403   1          /* Enter critical section */
+ 404   1          interruptState = CyEnterCriticalSection();
+ 405   1              
+ 406   1              /* Enable one pulse per second event and interrupt */
+ 407   1          RTC_OPPS_CFG_REG |= (RTC_OPPS_EN_MASK | RTC_OPPSIE_EN_MASK);
+ 408   1      
+ 409   1          /* Exit critical section */
+ 410   1          CyExitCriticalSection(interruptState);
+ 411   1              
+ 412   1              /* Enable interrupt */
+ 413   1          CyIntEnable(RTC_ISR_NUMBER);
+ 414   1      }
+ 415          
+ 416          
+ 417          /*******************************************************************************
+ 418          * Function Name:   RTC_ReadTime
+ 419          ********************************************************************************
+ 420          *
+ 421          * Summary:
+ 422          *  Returns a pointer to the current time and date structure.
+ 423          *
+ 424          * Parameters:
+ 425          *  None.
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 8   
+
+ 426          *
+ 427          * Return:
+ 428          *  RTC_currentTimeDate: pointer to the global structure with the
+ 429          *  current date and time values.
+ 430          *
+ 431          * Global variables:
+ 432          *  RTC_currentTimeDate: global variable with current date and 
+ 433          *   time is used.
+ 434          *
+ 435          * Side Effects:
+ 436          *  You should disable the interrupt for the RTC component before calling any 
+ 437          *  read API to avoid an RTC Counter increment in the middle of a time or date
+ 438          *  read operation. Re-enable the interrupts after the data is read.
+ 439          *
+ 440          *******************************************************************************/
+ 441          RTC_TIME_DATE* RTC_ReadTime(void) 
+ 442          {
+ 443   1          /* Returns a pointer to the current time and date structure */
+ 444   1          return (&RTC_currentTimeDate);
+ 445   1      }
+ 446          
+ 447          
+ 448          /*******************************************************************************
+ 449          * Function Name:   RTC_WriteTime
+ 450          ********************************************************************************
+ 451          *
+ 452          * Summary:
+ 453          *  Writes time and date values as current time and date. Only
+ 454          *  passes Milliseconds(optionaly), Seconds, Minutes, Hours, Month,
+ 455          *  Day Of Month and Year.
+ 456          *
+ 457          * Parameters:
+ 458          *  timeDate: Pointer to RTC_TIME_DATE global stucture where new 
+ 459          *  values of time and date are stored.
+ 460          *
+ 461          * Return:
+ 462          *  None.
+ 463          *
+ 464          * Global variables:
+ 465          *  RTC_currentTimeDate: global structure is modified with the new
+ 466          *  values of current date and time.
+ 467          *
+ 468          * Reentrant:
+ 469          *  No.
+ 470          *
+ 471          *******************************************************************************/
+ 472          void RTC_WriteTime(RTC_TIME_DATE *timeDate) 
+ 473          {
+ 474   1          /* Disable Interrupt of RTC Component */
+ 475   1          RTC_DisableInt();
+ 476   1      
+ 477   1          /* Write current time and date */
+ 478   1          RTC_currentTimeDate.Sec = timeDate->Sec ;
+ 479   1          RTC_currentTimeDate.Min = timeDate->Min ;
+ 480   1          RTC_currentTimeDate.Hour = timeDate->Hour ;
+ 481   1          RTC_currentTimeDate.DayOfMonth = timeDate->DayOfMonth ;
+ 482   1          RTC_currentTimeDate.Month = timeDate->Month;
+ 483   1          RTC_currentTimeDate.Year = timeDate->Year;
+ 484   1      
+ 485   1          /* Enable Interrupt of RTC Component */
+ 486   1          RTC_EnableInt();
+ 487   1      }
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 9   
+
+ 488          
+ 489          
+ 490          /*******************************************************************************
+ 491          * Function Name:   RTC_WriteSecond
+ 492          ********************************************************************************
+ 493          *
+ 494          * Summary:
+ 495          *  Writes Sec software register value.
+ 496          *
+ 497          * Parameters:
+ 498          *  second: Seconds value.
+ 499          *
+ 500          * Return:
+ 501          *  None.
+ 502          *
+ 503          * Global variables:
+ 504          *  RTC_currentTimeDate.Sec: global structure's field where current
+ 505          *  second's value is modified.
+ 506          *
+ 507          * Reentrant:
+ 508          *  No.
+ 509          *
+ 510          *******************************************************************************/
+ 511          void RTC_WriteSecond(uint8 second) 
+ 512          {
+ 513   1          /* Save seconds to the current time and date structure */
+ 514   1          RTC_currentTimeDate.Sec = second;
+ 515   1      }
+ 516          
+ 517          
+ 518          /*******************************************************************************
+ 519          * Function Name:   RTC_WriteMinute
+ 520          ********************************************************************************
+ 521          *
+ 522          * Summary:
+ 523          *  Writes Minute value in minutes counter register.
+ 524          *
+ 525          * Parameters:
+ 526          *  minute: Minutes value.
+ 527          *
+ 528          * Return:
+ 529          *  None.
+ 530          *
+ 531          * Global variables:
+ 532          *  RTC_currentTimeDate.Min: global structure's field where
+ 533          *  current minute's value is mmodified.
+ 534          *
+ 535          * Reentrant:
+ 536          *  No.
+ 537          *
+ 538          *******************************************************************************/
+ 539          void RTC_WriteMinute(uint8 minute) 
+ 540          {
+ 541   1          /* Save minutes to the current time and date structure */
+ 542   1          RTC_currentTimeDate.Min = minute;
+ 543   1      }
+ 544          
+ 545          
+ 546          /*******************************************************************************
+ 547          * Function Name:   RTC_WriteHour
+ 548          ********************************************************************************
+ 549          *
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 10  
+
+ 550          * Summary:
+ 551          *  Writes Hour software register value.
+ 552          *
+ 553          * Parameters:
+ 554          *  hour: Hours value.
+ 555          *
+ 556          * Return:
+ 557          *  None.
+ 558          *
+ 559          * Global variables:
+ 560          *  RTC_currentTimeDate.Hour: global structure's field where
+ 561          *  current hour's value is modified.
+ 562          *
+ 563          * Reentrant:
+ 564          *  No.
+ 565          *
+ 566          *******************************************************************************/
+ 567          void RTC_WriteHour(uint8 hour) 
+ 568          {
+ 569   1          /* Save hours to the current time and date structure */
+ 570   1          RTC_currentTimeDate.Hour = hour;
+ 571   1      }
+ 572          
+ 573          
+ 574          /*******************************************************************************
+ 575          * Function Name:   RTC_WriteDayOfMonth
+ 576          ********************************************************************************
+ 577          *
+ 578          * Summary:
+ 579          *  Writes DayOfMonth software register value.
+ 580          *
+ 581          * Parameters:
+ 582          *  dayOfMonth: Day Of Month value.
+ 583          *
+ 584          * Return:
+ 585          *  None.
+ 586          *
+ 587          * Global variables:
+ 588          *  RTC_currentTimeDate.DayOfMonth: global structure's field where
+ 589          *  current day of month's value is modified.
+ 590          *
+ 591          * Reentrant:
+ 592          *  No.
+ 593          *
+ 594          *******************************************************************************/
+ 595          void RTC_WriteDayOfMonth(uint8 dayOfMonth) 
+ 596          {
+ 597   1          /* Save day of month to the current time and date structure */
+ 598   1          RTC_currentTimeDate.DayOfMonth = dayOfMonth;
+ 599   1      }
+ 600          
+ 601          
+ 602          /*******************************************************************************
+ 603          * Function Name:   RTC_WriteMonth
+ 604          ********************************************************************************
+ 605          *
+ 606          * Summary:
+ 607          *  Writes Month software register value.
+ 608          *
+ 609          * Parameters:
+ 610          *  month: Month value.
+ 611          *
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 11  
+
+ 612          * Return:
+ 613          *  None.
+ 614          *
+ 615          * Global variables:
+ 616          *  RTC_currentTimeDate.Month: global structure's field where
+ 617          *  current day of month's value is modified.
+ 618          *
+ 619          * Reentrant:
+ 620          *  No.
+ 621          *
+ 622          *******************************************************************************/
+ 623          void RTC_WriteMonth(uint8 month) 
+ 624          {
+ 625   1          /* Save months to the current time and date structure */
+ 626   1          RTC_currentTimeDate.Month = month;
+ 627   1      }
+ 628          
+ 629          
+ 630          /*******************************************************************************
+ 631          * Function Name:   RTC_WriteYear
+ 632          ********************************************************************************
+ 633          *
+ 634          * Summary:
+ 635          *  Writes Year software register value.
+ 636          *
+ 637          * Parameters:
+ 638          *  year: Years value.
+ 639          *
+ 640          * Return:
+ 641          *  None.
+ 642          *
+ 643          * Global variables:
+ 644          *  RTC_currentTimeDate.Year: global structure's field where
+ 645          *  current year's value is modified.
+ 646          *
+ 647          * Reentrant:
+ 648          *  No.
+ 649          *
+ 650          *******************************************************************************/
+ 651          void RTC_WriteYear(uint16 year) 
+ 652          {
+ 653   1          /* Save years to the current time and date structure */
+ 654   1          RTC_currentTimeDate.Year = year;
+ 655   1      }
+ 656          
+ 657          
+ 658          /*******************************************************************************
+ 659          * Function Name:   RTC_WriteAlarmSecond
+ 660          ********************************************************************************
+ 661          *
+ 662          * Summary:
+ 663          *  Writes Alarm Sec software register value.
+ 664          *
+ 665          * Parameters:
+ 666          *  second: Alarm Seconds value.
+ 667          *
+ 668          * Return:
+ 669          *  None.
+ 670          *
+ 671          * Global variables:
+ 672          *  RTC_currentTimeDate.Sec: this global variable is used for 
+ 673          *  comparison while setting and clearing seconds alarm status variable.
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 12  
+
+ 674          *
+ 675          *  RTC_alarmCfgTimeDate.Sec: this global variable is modified to
+ 676          *  store of the new seconds alarm.
+ 677          *
+ 678          *  RTC_alarmCurStatus: this global variable could be changed if
+ 679          *  second's alarm will be raisen.
+ 680          *
+ 681          * Reentrant:
+ 682          *  No.
+ 683          *
+ 684          *******************************************************************************/
+ 685          void RTC_WriteAlarmSecond(uint8 second) 
+ 686          {
+ 687   1          RTC_alarmCfgTimeDate.Sec = second;
+ 688   1      
+ 689   1          /* Check second alarm */
+ 690   1          if(RTC_alarmCfgTimeDate.Sec == RTC_currentTimeDate.Sec)
+ 691   1          {
+ 692   2              /* Set second alarm */
+ 693   2              RTC_alarmCurStatus |= RTC_ALARM_SEC_MASK;
+ 694   2          }
+ 695   1          else    /* no second alarm */
+ 696   1          {
+ 697   2              /* Clear second alarm */
+ 698   2              RTC_alarmCurStatus &= ~RTC_ALARM_SEC_MASK;
+ 699   2          }
+ 700   1      }
+ 701          
+ 702          
+ 703          /*******************************************************************************
+ 704          * Function Name:   RTC_WriteAlarmMinute
+ 705          ********************************************************************************
+ 706          *
+ 707          * Summary:
+ 708          *  Writes Alarm Min software register value.
+ 709          *
+ 710          * Parameters:
+ 711          *  minute: Alarm minutes value.
+ 712          *
+ 713          * Return:
+ 714          *  None.
+ 715          *
+ 716          * Global variables:
+ 717          *  RTC_currentTimeDate.Min: this global variable is used for 
+ 718          *  comparison while setting and clearing minutes alarm status variable.
+ 719          *
+ 720          *  RTC_alarmCfgTimeDate.Min: this global variable is modified to
+ 721          *  store of the new minutes alarm.
+ 722          *
+ 723          *  RTC_alarmCurStatus: this global variable could be changed if
+ 724          *  minute's alarm will be raisen.
+ 725          *
+ 726          * Reentrant:
+ 727          *  No.
+ 728          *
+ 729          *******************************************************************************/
+ 730          void RTC_WriteAlarmMinute(uint8 minute) 
+ 731          {
+ 732   1          RTC_alarmCfgTimeDate.Min = minute;
+ 733   1      
+ 734   1          /* Check minute alarm */
+ 735   1          if(RTC_alarmCfgTimeDate.Min == RTC_currentTimeDate.Min)
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 13  
+
+ 736   1          {
+ 737   2              /* Set minute alarm */
+ 738   2              RTC_alarmCurStatus |= RTC_ALARM_MIN_MASK;
+ 739   2          }
+ 740   1          else    /* no minute alarm */
+ 741   1          {
+ 742   2              /* Clear minute alarm */
+ 743   2              RTC_alarmCurStatus &= ~RTC_ALARM_MIN_MASK;
+ 744   2          }
+ 745   1      }
+ 746          
+ 747          
+ 748          /*******************************************************************************
+ 749          * Function Name:   RTC_WriteAlarmHour
+ 750          ********************************************************************************
+ 751          *
+ 752          * Summary:
+ 753          *  Writes Alarm Hour software register value.
+ 754          *
+ 755          * Parameters:
+ 756          *  hour: Alarm hours value.
+ 757          *
+ 758          * Return:
+ 759          *  None.
+ 760          *
+ 761          * Global variables:
+ 762          *  RTC_currentTimeDate.Hour: this global variable is used for 
+ 763          *  comparison while setting and clearing hours alarm status variable.
+ 764          *
+ 765          *  RTC_alarmCfgTimeDate.Hour: this global variable is modified to
+ 766          *  store of the new hours alarm.
+ 767          *
+ 768          *  RTC_alarmCurStatus: this global variable could be changed if
+ 769          *  hours alarm will be raisen.
+ 770          *
+ 771          * Reentrant:
+ 772          *  No.
+ 773          *
+ 774          *******************************************************************************/
+ 775          void RTC_WriteAlarmHour(uint8 hour) 
+ 776          {
+ 777   1          RTC_alarmCfgTimeDate.Hour = hour;
+ 778   1      
+ 779   1          /* Check hour alarm */
+ 780   1          if(RTC_alarmCfgTimeDate.Hour == RTC_currentTimeDate.Hour)
+ 781   1          {
+ 782   2              /* Set hour alarm */
+ 783   2              RTC_alarmCurStatus |= RTC_ALARM_HOUR_MASK;
+ 784   2          }
+ 785   1          else    /* no hour alarm */
+ 786   1          {
+ 787   2              /* Clear hour alarm */
+ 788   2              RTC_alarmCurStatus &= ~RTC_ALARM_HOUR_MASK;
+ 789   2          }
+ 790   1      }
+ 791          
+ 792          
+ 793          /*******************************************************************************
+ 794          * Function Name:   RTC_WriteAlarmDayOfMonth
+ 795          ********************************************************************************
+ 796          *
+ 797          * Summary:
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 14  
+
+ 798          *  Writes Alarm DayOfMonth software register value.
+ 799          *
+ 800          * Parameters:
+ 801          *  dayOfMonth: Alarm day of month value.
+ 802          *
+ 803          * Return:
+ 804          *  None.
+ 805          *
+ 806          * Global variables:
+ 807          *  RTC_currentTimeDate.DayOfMonth: this global variable is used for 
+ 808          *  comparison while setting and clearing day of month alarm status variable.
+ 809          *
+ 810          *  RTC_alarmCfgTimeDate.DayOfMonth: this global variable is
+ 811          *  modified to store of the new day of month alarm.
+ 812          *
+ 813          *  RTC_alarmCurStatus: this global variable could be changed if
+ 814          *  day of month alarm will be raisen.
+ 815          *
+ 816          * Reentrant:
+ 817          *  No.
+ 818          *
+ 819          *******************************************************************************/
+ 820          void RTC_WriteAlarmDayOfMonth(uint8 dayOfMonth) 
+ 821          {
+ 822   1          RTC_alarmCfgTimeDate.DayOfMonth = dayOfMonth;
+ 823   1      
+ 824   1          /* Check day of month alarm */
+ 825   1          if(RTC_alarmCfgTimeDate.DayOfMonth == RTC_currentTimeDate.DayOfMonth)
+ 826   1          {
+ 827   2              /* Set day of month alarm */
+ 828   2              RTC_alarmCurStatus |= RTC_ALARM_DAYOFMONTH_MASK;
+ 829   2          }
+ 830   1          else    /* no day of month alarm */
+ 831   1          {
+ 832   2              /* Clear day of month alarm */
+ 833   2              RTC_alarmCurStatus &= ~RTC_ALARM_DAYOFMONTH_MASK;
+ 834   2          }
+ 835   1      }
+ 836          
+ 837          
+ 838          /*******************************************************************************
+ 839          * Function Name:   RTC_WriteAlarmMonth
+ 840          ********************************************************************************
+ 841          *
+ 842          * Summary:
+ 843          *  Writes Alarm Month software register value.
+ 844          *
+ 845          * Parameters:
+ 846          *  month: Alarm month value.
+ 847          *
+ 848          * Return:
+ 849          *  None.
+ 850          *
+ 851          * Global variables:
+ 852          *  RTC_currentTimeDate.Month: this global variable is used for 
+ 853          *  comparison while setting and clearing month alarm status variable.
+ 854          *
+ 855          *  RTC_alarmCfgTimeDate.Month: this global variable is modified
+ 856          *  to store of the new month alarm.
+ 857          *
+ 858          *  RTC_alarmCurStatus: this global variable could be changed if
+ 859          *  month alarm will be raisen.
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 15  
+
+ 860          *
+ 861          * Reentrant:
+ 862          *  No.
+ 863          *
+ 864          *******************************************************************************/
+ 865          void RTC_WriteAlarmMonth(uint8 month) 
+ 866          {
+ 867   1          RTC_alarmCfgTimeDate.Month = month;
+ 868   1      
+ 869   1          /* Check month alarm */
+ 870   1          if(RTC_alarmCfgTimeDate.Month == RTC_currentTimeDate.Month)
+ 871   1          {
+ 872   2              /* Set month alarm */
+ 873   2              RTC_alarmCurStatus |= RTC_ALARM_MONTH_MASK;
+ 874   2          }
+ 875   1          else    /* no month alarm */
+ 876   1          {
+ 877   2              /* Clear month alarm */
+ 878   2              RTC_alarmCurStatus &= ~RTC_ALARM_MONTH_MASK;
+ 879   2          }
+ 880   1      }
+ 881          
+ 882          
+ 883          /*******************************************************************************
+ 884          * Function Name:   RTC_WriteAlarmYear
+ 885          ********************************************************************************
+ 886          *
+ 887          * Summary:
+ 888          *  Writes Alarm Year software register value.
+ 889          *
+ 890          * Parameters:
+ 891          *  year: Alarm year value.
+ 892          *
+ 893          * Return:
+ 894          *  None.
+ 895          *
+ 896          * Global variables:
+ 897          *  RTC_currentTimeDate.Year: this global variable is used for 
+ 898          *  comparison while setting and clearing year alarm status variable.
+ 899          *
+ 900          *  RTC_alarmCfgTimeDate.Year: this global variable is modified
+ 901          *  to store of the new year alarm.
+ 902          *
+ 903          *  RTC_alarmCurStatus: this global variable could be changed if
+ 904          *  year alarm will be raisen.
+ 905          *
+ 906          * Reentrant:
+ 907          *  No.
+ 908          *
+ 909          *******************************************************************************/
+ 910          void RTC_WriteAlarmYear(uint16 year) 
+ 911          {
+ 912   1         RTC_alarmCfgTimeDate.Year = year;
+ 913   1      
+ 914   1          /* Check year alarm */
+ 915   1          if(RTC_alarmCfgTimeDate.Year == RTC_currentTimeDate.Year)
+ 916   1          {
+ 917   2              /* Set year alarm */
+ 918   2              RTC_alarmCurStatus |= RTC_ALARM_YEAR_MASK;
+ 919   2          }
+ 920   1          else    /* no year alarm */
+ 921   1          {
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 16  
+
+ 922   2              /* Set year alarm */
+ 923   2              RTC_alarmCurStatus &= ~RTC_ALARM_YEAR_MASK;
+ 924   2          }
+ 925   1      }
+ 926          
+ 927          
+ 928          /*******************************************************************************
+ 929          * Function Name:   RTC_WriteAlarmDayOfWeek
+ 930          ********************************************************************************
+ 931          *
+ 932          * Summary:
+ 933          *   Writes Alarm DayOfWeek software register value.
+ 934          *   Days values {Sun = 1, Mon = 2, Tue = 3, Wen = 4, Thu = 5, Fri = 6, Sut = 7}
+ 935          *
+ 936          * Parameters:
+ 937          *  dayOfWeek: Alarm day of week value.
+ 938          *
+ 939          * Return:
+ 940          *  None.
+ 941          *
+ 942          * Global variables:
+ 943          *  RTC_currentTimeDate.DayOfWeek: this global variable is used for 
+ 944          *  comparison while setting and clearing day of week alarm status variable.
+ 945          *
+ 946          *  RTC_alarmCfgTimeDate.DayOfWeek: this global variable is modified
+ 947          *  to store of the new day of week alarm.
+ 948          *
+ 949          *  RTC_alarmCurStatus: this global variable could be changed if
+ 950          *  day of week alarm will be raisen.
+ 951          *
+ 952          * Reentrant:
+ 953          *  No.
+ 954          *
+ 955          *******************************************************************************/
+ 956          void RTC_WriteAlarmDayOfWeek(uint8 dayOfWeek) 
+ 957          {
+ 958   1          RTC_alarmCfgTimeDate.DayOfWeek = dayOfWeek;
+ 959   1      
+ 960   1          /* Check day of week alarm */
+ 961   1          if(RTC_alarmCfgTimeDate.DayOfWeek == RTC_currentTimeDate.DayOfWeek)
+ 962   1          {
+ 963   2              /* Set day of week alarm */
+ 964   2              RTC_alarmCurStatus |= RTC_ALARM_DAYOFWEEK_MASK;
+ 965   2          }
+ 966   1          else    /* no day of week alarm */
+ 967   1          {
+ 968   2              /* Set day of week alarm */
+ 969   2              RTC_alarmCurStatus &= ~RTC_ALARM_DAYOFWEEK_MASK;
+ 970   2          }
+ 971   1      }
+ 972          
+ 973          
+ 974          /*******************************************************************************
+ 975          * Function Name:   RTC_WriteAlarmDayOfYear
+ 976          ********************************************************************************
+ 977          *
+ 978          * Summary:
+ 979          *  Writes Alarm DayOfYear software register value.
+ 980          *
+ 981          * Parameters:
+ 982          *  dayOfYear: Alarm day of year value.
+ 983          *
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 17  
+
+ 984          * Return:
+ 985          *  None.
+ 986          *
+ 987          * Global variables:
+ 988          *  RTC_currentTimeDate.DayOfYear: this global variable is used for 
+ 989          *  comparison while setting and clearing day of year alarm status variable.
+ 990          *
+ 991          *  RTC_alarmCfgTimeDate.DayOfYear: this global variable is modified
+ 992          *  to store of the new day of year alarm.
+ 993          *
+ 994          *  RTC_alarmCurStatus: this global variable could be changed if
+ 995          *  day of year alarm will be raisen.
+ 996          *
+ 997          * Reentrant:
+ 998          *  No.
+ 999          *
+1000          *******************************************************************************/
+1001          void RTC_WriteAlarmDayOfYear(uint16 dayOfYear) 
+1002          {
+1003   1        RTC_alarmCfgTimeDate.DayOfYear = dayOfYear;
+1004   1      
+1005   1          /* Check day of year alarm */
+1006   1          if(RTC_alarmCfgTimeDate.DayOfYear == RTC_currentTimeDate.DayOfYear)
+1007   1          {
+1008   2              /* Set day of year alarm */
+1009   2              RTC_alarmCurStatus |= RTC_ALARM_DAYOFYEAR_MASK;
+1010   2          }
+1011   1          else    /* no day of year alarm */
+1012   1          {
+1013   2              /* Set day of year alarm */
+1014   2              RTC_alarmCurStatus &= ~RTC_ALARM_DAYOFYEAR_MASK;
+1015   2          }
+1016   1      }
+1017          
+1018          
+1019          /*******************************************************************************
+1020          * Function Name:   RTC_ReadSecond
+1021          ********************************************************************************
+1022          *
+1023          * Summary:
+1024          *  Reads Sec software register value.
+1025          *
+1026          * Parameters:
+1027          *  None.
+1028          *
+1029          * Return:
+1030          *  Current seconds value.
+1031          *
+1032          * Global variables:
+1033          *  RTC_currentTimeDate.Sec: the current second's value is used.
+1034          *
+1035          *******************************************************************************/
+1036          uint8 RTC_ReadSecond(void) 
+1037          {
+1038   1          /* Return current second */
+1039   1          return (RTC_currentTimeDate.Sec);
+1040   1      }
+1041          
+1042          
+1043          /*******************************************************************************
+1044          * Function Name:   RTC_ReadMinute
+1045          ********************************************************************************
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 18  
+
+1046          *
+1047          * Summary:
+1048          *  Reads Min software register value.
+1049          *
+1050          * Parameters:
+1051          *  None.
+1052          *
+1053          * Return:
+1054          *  Current field's value is returned.
+1055          *
+1056          * Global variables:
+1057          *  RTC_currentTimeDate.Min: the current field's value is used.
+1058          *
+1059          *******************************************************************************/
+1060          uint8 RTC_ReadMinute(void) 
+1061          {
+1062   1          /* Return current minute */
+1063   1          return (RTC_currentTimeDate.Min);
+1064   1      }
+1065          
+1066          
+1067          /*******************************************************************************
+1068          * Function Name:   RTC_ReadHour
+1069          ********************************************************************************
+1070          *
+1071          * Summary:
+1072          *  Reads Hour software register value.
+1073          *
+1074          * Parameters:
+1075          *  None.
+1076          *
+1077          * Return:
+1078          *  Current hour's value.
+1079          *
+1080          * Global variables:
+1081          *  RTC_currentTimeDate.Hour: the current field's value is used.
+1082          *
+1083          *******************************************************************************/
+1084          uint8 RTC_ReadHour(void) 
+1085          {
+1086   1          /* Return current hour */
+1087   1          return (RTC_currentTimeDate.Hour);
+1088   1      }
+1089          
+1090          
+1091          /*******************************************************************************
+1092          * Function Name:   RTC_ReadDayOfMonth
+1093          ********************************************************************************
+1094          *
+1095          * Summary:
+1096          *  Reads DayOfMonth software register value.
+1097          *
+1098          * Parameters:
+1099          *  None.
+1100          *
+1101          * Return:
+1102          *  Current value of the day of month. 
+1103          *  returned.
+1104          *
+1105          * Global variables:
+1106          *  RTC_currentTimeDate.DayOfMonth: the current day of month's 
+1107          *  value is used.
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 19  
+
+1108          *
+1109          *******************************************************************************/
+1110          uint8 RTC_ReadDayOfMonth(void) 
+1111          {
+1112   1          /* Return current day of the month */
+1113   1          return (RTC_currentTimeDate.DayOfMonth);
+1114   1      }
+1115          
+1116          
+1117          /*******************************************************************************
+1118          * Function Name:   RTC_ReadMonth
+1119          ********************************************************************************
+1120          *
+1121          * Summary:
+1122          *  Reads Month software register value.
+1123          *
+1124          * Parameters:
+1125          *  None.
+1126          *
+1127          * Return:
+1128          *  Current value of the month.  
+1129          *
+1130          * Global variables:
+1131          *  RTC_currentTimeDate.Month: the current month's value is used.
+1132          *
+1133          *******************************************************************************/
+1134          uint8 RTC_ReadMonth(void) 
+1135          {
+1136   1          /* Return current month */
+1137   1          return (RTC_currentTimeDate.Month);
+1138   1      }
+1139          
+1140          
+1141          /*******************************************************************************
+1142          * Function Name:   RTC_ReadYear
+1143          ********************************************************************************
+1144          *
+1145          * Summary:
+1146          *  Reads Year software register value.
+1147          *
+1148          * Parameters:
+1149          *  None.
+1150          *
+1151          * Return:
+1152          *  Current value of the year. 
+1153          *
+1154          * Global variables:
+1155          *  RTC_currentTimeDate.Year: the current year's value is used.
+1156          *
+1157          *******************************************************************************/
+1158          uint16 RTC_ReadYear(void) 
+1159          {
+1160   1          /* Return current year */
+1161   1          return (RTC_currentTimeDate.Year);
+1162   1      }
+1163          
+1164          
+1165          /*******************************************************************************
+1166          * Function Name:   RTC_ReadAlarmSecond
+1167          ********************************************************************************
+1168          *
+1169          * Summary:
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 20  
+
+1170          *  Reads Alarm Sec software register value.
+1171          *
+1172          * Parameters:
+1173          *  None.
+1174          *
+1175          * Return:
+1176          *  Current alarm value of the seconds.
+1177          *
+1178          * Global variables:
+1179          *  RTC_alarmCfgTimeDate.Sec: the current second alarm value is
+1180          *  used.
+1181          *
+1182          ********************************************************************************/
+1183          uint8 RTC_ReadAlarmSecond(void) 
+1184          {
+1185   1          /* Return current alarm second */
+1186   1          return (RTC_alarmCfgTimeDate.Sec);
+1187   1      }
+1188          
+1189          
+1190          /*******************************************************************************
+1191          * Function Name:   RTC_ReadAlarmMinute
+1192          ********************************************************************************
+1193          *
+1194          * Summary:
+1195          *  Reads Alarm Min software register value.
+1196          *
+1197          * Parameters:
+1198          *  None.
+1199          *
+1200          * Return:
+1201          *  Current alarm value of the minutes.
+1202          *
+1203          * Global variables:
+1204          *  RTC_alarmCfgTimeDate.Min: the current minute alarm is used.
+1205          *
+1206          *******************************************************************************/
+1207          uint8 RTC_ReadAlarmMinute(void) 
+1208          {
+1209   1          /* Return current alarm minute */
+1210   1          return (RTC_alarmCfgTimeDate.Min);
+1211   1      }
+1212          
+1213          
+1214          /*******************************************************************************
+1215          * Function Name:   RTC_ReadAlarmHour
+1216          ********************************************************************************
+1217          *
+1218          * Summary:
+1219          *  Reads Alarm Hour software register value.
+1220          *
+1221          * Parameters:
+1222          *  None.  
+1223          *
+1224          * Return:
+1225          *  Current alarm value of the hours.
+1226          *
+1227          * Global variables:
+1228          *  RTC_alarmCfgTimeDate.Hour: the current hour alarm value is used. 
+1229          *
+1230          *******************************************************************************/
+1231          uint8 RTC_ReadAlarmHour(void) 
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 21  
+
+1232          {
+1233   1          /* Return current alarm hour */
+1234   1          return (RTC_alarmCfgTimeDate.Hour);
+1235   1      }
+1236          
+1237          
+1238          /*******************************************************************************
+1239          * Function Name:   RTC_ReadAlarmDayOfMonth
+1240          ********************************************************************************
+1241          *
+1242          * Summary:
+1243          *  Reads Alarm DayOfMonth software register value.
+1244          *
+1245          * Parameters:
+1246          *  None.
+1247          *
+1248          * Return:
+1249          *  Current alarm value of the day of month.
+1250          *
+1251          * Global variables:
+1252          *  RTC_alarmCfgTimeDate.DayOfMonth: the current day of month alarm 
+1253          *  value is used.
+1254          *
+1255          *******************************************************************************/
+1256          uint8 RTC_ReadAlarmDayOfMonth(void) 
+1257          {
+1258   1          /* Return current alarm day of month */
+1259   1          return (RTC_alarmCfgTimeDate.DayOfMonth);
+1260   1      }
+1261          
+1262          
+1263          /*******************************************************************************
+1264          * Function Name:   RTC_ReadAlarmMonth
+1265          ********************************************************************************
+1266          *
+1267          * Summary:
+1268          *  Reads Alarm Month software register value.
+1269          *
+1270          * Parameters:
+1271          *  None.
+1272          *
+1273          * Return:
+1274          *  Current alarm value of the month.
+1275          *
+1276          * Global variables:
+1277          *  RTC_alarmCfgTimeDate.Month: the current month alarm value is
+1278          *  used.
+1279          *
+1280          *******************************************************************************/
+1281          uint8 RTC_ReadAlarmMonth(void) 
+1282          {
+1283   1          /* Return current alarm month */
+1284   1          return (RTC_alarmCfgTimeDate.Month);
+1285   1      }
+1286          
+1287          
+1288          /*******************************************************************************
+1289          * Function Name:   RTC_ReadAlarmYear
+1290          ********************************************************************************
+1291          *
+1292          * Summary:
+1293          *  Reads Alarm Year software register value.
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 22  
+
+1294          *
+1295          * Parameters:
+1296          *  None.
+1297          *
+1298          * Return:
+1299          *  Current alarm value of the years.
+1300          *
+1301          * Global variables:
+1302          *  RTC_alarmCfgTimeDate.Year: the current year alarm value is used.
+1303          *
+1304          *******************************************************************************/
+1305          uint16 RTC_ReadAlarmYear(void) 
+1306          {
+1307   1          /* Return current alarm year */
+1308   1          return (RTC_alarmCfgTimeDate.Year);
+1309   1      }
+1310          
+1311          
+1312          /*******************************************************************************
+1313          * Function Name:   RTC_ReadAlarmDayOfWeek
+1314          ********************************************************************************
+1315          *
+1316          * Summary:
+1317          *  Reads Alarm DayOfWeek software register value.
+1318          *
+1319          * Parameters:
+1320          *  None.
+1321          *
+1322          * Return:
+1323          *  Current alarm value of the day of week.
+1324          *
+1325          * Global variables:
+1326          *  RTC_alarmCfgTimeDate.DayOfWeek: the current day of week alarm
+1327          *  value is used.
+1328          *
+1329          *******************************************************************************/
+1330          uint8 RTC_ReadAlarmDayOfWeek(void) 
+1331          {
+1332   1          /* Return current alarm day of the week */
+1333   1          return (RTC_alarmCfgTimeDate.DayOfWeek);
+1334   1      }
+1335          
+1336          
+1337          /*******************************************************************************
+1338          * Function Name:   RTC_ReadAlarmDayOfYear
+1339          ********************************************************************************
+1340          *
+1341          * Summary:
+1342          *  Reads Alarm DayOfYear software register value.
+1343          *
+1344          * Parameters:
+1345          *  None.
+1346          *
+1347          * Return:
+1348          *  Current alarm value of the day of year.
+1349          *
+1350          * Global variables:
+1351          *  RTC_alarmCfgTimeDate.DayOfYear: the current day of year alarm 
+1352          *  value is used.
+1353          *
+1354          *******************************************************************************/
+1355          uint16 RTC_ReadAlarmDayOfYear(void) 
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 23  
+
+1356          {
+1357   1          /* Return current alarm day of the year */
+1358   1          return  (RTC_alarmCfgTimeDate.DayOfYear);
+1359   1      }
+1360          
+1361          
+1362          /*******************************************************************************
+1363          * Function Name:   RTC_WriteAlarmMask
+1364          ********************************************************************************
+1365          *
+1366          * Summary:
+1367          *  Writes the Alarm Mask software register with 1 bit per time/date entry. Alarm
+1368          *  true when all masked time/date values match Alarm values.
+1369          *
+1370          * Parameters:
+1371          *  mask: Alarm Mask software register value.
+1372          *
+1373          * Return:
+1374          *  None.
+1375          *
+1376          * Global variables:
+1377          *  RTC_alarmCfgMask: global variable which stores masks for 
+1378          *  time/date alarm configuration is modified.
+1379          *
+1380          * Reentrant:
+1381          *  No.
+1382          *
+1383          *******************************************************************************/
+1384          void RTC_WriteAlarmMask(uint8 mask) 
+1385          {
+1386   1          RTC_alarmCfgMask = mask;
+1387   1      }
+1388          
+1389          
+1390          /*******************************************************************************
+1391          * Function Name:   RTC_WriteIntervalMask
+1392          ********************************************************************************
+1393          *
+1394          * Summary:
+1395          *  Writes the Interval Mask software register with 1 bit per time/date entry.
+1396          *  Interrupt true when any masked time/date overflow occur.
+1397          *
+1398          * Parameters:
+1399          *  mask: Alarm Mask software register value.
+1400          *
+1401          * Return:
+1402          *  None. 
+1403          *
+1404          * Global variables:
+1405          *  RTC_intervalCfgMask: this global variable is modified - the new
+1406          *  value of interval mask is stored here.
+1407          *
+1408          * Reentrant:
+1409          *  No.
+1410          *
+1411          *******************************************************************************/
+1412          void RTC_WriteIntervalMask(uint8 mask) 
+1413          {
+1414   1          RTC_intervalCfgMask = mask;
+1415   1      }
+1416          
+1417          
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 24  
+
+1418          /*******************************************************************************
+1419          * Function Name:   RTC_ReadStatus
+1420          ********************************************************************************
+1421          *
+1422          * Summary:
+1423          *  Reads the Status software register which has flags for DST
+1424          *  (DST), Leap Year (LY) and AM/PM (AM_PM), Alarm active (AA).
+1425          *
+1426          * Parameters:
+1427          *  None.
+1428          *
+1429          * Return:
+1430          *  None.
+1431          *
+1432          * Global variables:
+1433          *  RTC_statusDateTime: global variable is modified - active alarm
+1434          *  status bit is cleared.
+1435          *
+1436          * Reentrant:
+1437          *  No.
+1438          *
+1439          * Side Effects:
+1440          *  Alarm active(AA) flag clear after read.
+1441          *
+1442          *******************************************************************************/
+1443          uint8 RTC_ReadStatus(void) CYREENTRANT
+1444          {
+1445   1          uint8 status = 0u;
+1446   1      
+1447   1          /* Save status */
+1448   1          status = (uint8)RTC_statusDateTime;
+1449   1      
+1450   1          /* Clean AA flag after read of Status Register */
+1451   1          RTC_statusDateTime &= ~RTC_STATUS_AA;
+1452   1      
+1453   1          return (status);
+1454   1      }
+1455          
+1456          
+1457          /*******************************************************************************
+1458          * Function Name:   RTC_DayOfWeek
+1459          ********************************************************************************
+1460          *
+1461          * Summary:
+1462          *  Calculates Day Of Week value use Zeller's congruence.
+1463          *
+1464          * Parameters:
+1465          *  dayOfMonth: Day Of Month value.
+1466          *  month: Month value.
+1467          *  year: Year value.
+1468          *
+1469          * Return:
+1470          *  Day Of Week value.
+1471          *
+1472          *******************************************************************************/
+1473          uint8 RTC_DayOfWeek(uint8 dayOfMonth, uint8 month, uint16 year) 
+1474          {
+1475   1          /* It is simpler to handle the modified year year, which is year - 1 during 
+1476   1          * January and February
+1477   1          */
+1478   1          if (month < RTC_MARCH)
+1479   1          {
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 25  
+
+1480   2              year = year - 1;
+1481   2          }
+1482   1          
+1483   1          /* For Gregorian calendar: d = (day + y + y/4 - y/100 + y/400 + (31*m)/12) mod 7 */
+1484   1          return ((uint8)((year + year/4 - year/100 + year/400 + RTC_monthTemplate[month-1] + dayOfMonth) % \
+1485   1                          RTC_DAYS_IN_WEEK));
+1486   1      }
+1487          
+1488          
+1489          /*******************************************************************************
+1490          * Function Name:   RTC_SetInitValues
+1491          ********************************************************************************
+1492          *
+1493          * Summary:
+1494          *    Does all initial calculation.
+1495          *    - Set LP Year flag;
+1496          *    - Set AM/PM flag;
+1497          *    - DayOfWeek;
+1498          *    - DayOfYear;
+1499          *    - Set DST flag;
+1500          *    - Convert relative to absolute date.
+1501          *
+1502          * Parameters:
+1503          *  None.
+1504          *
+1505          * Return:
+1506          *  None.   
+1507          *
+1508          * Global variables:
+1509          *  RTC_currentTimeDate, RTC_dstTimeDateStart, 
+1510          *  RTC_dstTimeDateStop, RTC_dstTimeDateStart,
+1511          *  RTC_alarmCfgTimeDate, RTC_statusDateTime,
+1512          *  RTC_dstStartStatus, RTC_dstStartStatus,
+1513          *  RTC_dstStopStatus, RTC_alarmCurStatus: 
+1514          *  global variables are used while the initial calculation.
+1515          *
+1516          * RTC_dstTimeDateStart, RTC_currentTimeDate,
+1517          *  RTC_statusDateTime, RTC_dstStartStatus, 
+1518          *  RTC_dstStartStatus, RTC_dstStopStatus, 
+1519          *  RTC_alarmCurStatus: global variables are modified with the
+1520          *  initial calculated data.
+1521          *
+1522          * Reentrant:
+1523          *  No.
+1524          *
+1525          *******************************************************************************/
+1526          void RTC_SetInitValues(void) 
+1527          {
+1528   1          uint8 i;
+1529   1      
+1530   1          /* Clears day of month counter */
+1531   1          RTC_currentTimeDate.DayOfYear = 0u;
+1532   1          
+1533   1          /* Increments day of year value with day in current month */
+1534   1          RTC_currentTimeDate.DayOfYear += RTC_currentTimeDate.DayOfMonth;
+1535   1      
+1536   1          /* Check leap year */
+1537   1          if(1u == RTC_LEAP_YEAR(RTC_currentTimeDate.Year))
+1538   1          {
+1539   2              /* Set LP Year flag */
+1540   2              RTC_statusDateTime |= RTC_STATUS_LY;
+1541   2          }   /* leap year flag was set */
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 26  
+
+1542   1          else
+1543   1          {
+1544   2              /* Clear LP Year flag */
+1545   2              RTC_statusDateTime &= ~RTC_STATUS_LY;
+1546   2          }   /* leap year flag was cleared */
+1547   1      
+1548   1          /* Day Of Year */
+1549   1          for(i = 0u; i < RTC_currentTimeDate.Month - 1u; i++)
+1550   1          {
+1551   2              /* Increment on days in passed months */
+1552   2              RTC_currentTimeDate.DayOfYear += RTC_daysInMonths[i];
+1553   2          }   /* day of year is calculated */
+1554   1      
+1555   1          /* Leap year check */
+1556   1          if(RTC_IS_BIT_SET(RTC_statusDateTime, RTC_STATUS_LY))
+1557   1          {
+1558   2              /* Leap day check */
+1559   2              if(!(RTC_currentTimeDate.DayOfMonth <= RTC_DAYS_IN_FEBRUARY + 1u &&
+1560   2                    RTC_currentTimeDate.Month <= RTC_FEBRUARY))
+1561   2              {
+1562   3                  /* Add leap day */
+1563   3                  RTC_currentTimeDate.DayOfYear++;
+1564   3              }   /* Do nothing for non leap day */
+1565   2          }   /* Do nothing for not leap year */
+1566   1      
+1567   1          /* DayOfWeek */
+1568   1          RTC_currentTimeDate.DayOfWeek = RTC_DayOfWeek( \
+1569   1                                                                              RTC_currentTimeDate.DayOfMonth, \
+1570   1                                                                              RTC_currentTimeDate.Month, \
+1571   1                                                                              RTC_currentTimeDate.Year) + 1u;
+1572   1          
+1573   1          if (RTC_currentTimeDate.DayOfWeek > RTC_START_OF_WEEK)
+1574   1          {
+1575   2              RTC_currentTimeDate.DayOfWeek -= RTC_START_OF_WEEK;
+1576   2          }
+1577   1          else
+1578   1          {
+1579   2              RTC_currentTimeDate.DayOfWeek = RTC_DAYS_IN_WEEK - \
+1580   2                                              (RTC_START_OF_WEEK - RTC_currentTimeDate.DayOfWeek);
+1581   2          }
+1582   1      
+1583   1          #if(1u == RTC_DST_FUNC_ENABLE)
+1584   1      
+1585   1              /* If DST values is given in a relative manner, converts to the absolute
+1586   1              * values
+1587   1              */
+1588   1              if(RTC_IS_BIT_SET(RTC_dstModeType, RTC_DST_RELDATE))
+1589   1              {
+1590   2                  RTC_DSTDateConversion();
+1591   2              }
+1592   1      
+1593   1              /* Sets DST status respect to the DST start date and time */
+1594   1              if(RTC_currentTimeDate.Month > RTC_dstTimeDateStart.Month)
+1595   1              {
+1596   2                  RTC_statusDateTime |= RTC_STATUS_DST;
+1597   2              }
+1598   1              else if(RTC_currentTimeDate.Month == RTC_dstTimeDateStart.Month)
+1599   1              {
+1600   2                  if(RTC_currentTimeDate.DayOfMonth > RTC_dstTimeDateStart.DayOfMonth)
+1601   2                  {
+1602   3                      RTC_statusDateTime |= RTC_STATUS_DST;
+1603   3                  }
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 27  
+
+1604   2                  else if(RTC_currentTimeDate.DayOfMonth == RTC_dstTimeDateStart.DayOfMonth)
+1605   2                  {
+1606   3                      if(RTC_currentTimeDate.Hour > RTC_dstTimeDateStart.Hour)
+1607   3                      {
+1608   4                          RTC_statusDateTime |= RTC_STATUS_DST;
+1609   4                      }
+1610   3                  }
+1611   2              }
+1612   1      
+1613   1              /* Clears DST status respect to the DST start date and time */
+1614   1              if(RTC_currentTimeDate.Month > RTC_dstTimeDateStop.Month)
+1615   1              {
+1616   2                  RTC_statusDateTime &= ~RTC_STATUS_DST;
+1617   2              }
+1618   1              else if(RTC_currentTimeDate.Month == RTC_dstTimeDateStop.Month)
+1619   1              {
+1620   2                  if(RTC_currentTimeDate.DayOfMonth > RTC_dstTimeDateStop.DayOfMonth)
+1621   2                  {
+1622   3                      RTC_statusDateTime &= ~RTC_STATUS_DST;
+1623   3                  }
+1624   2                  else if(RTC_currentTimeDate.DayOfMonth == RTC_dstTimeDateStop.DayOfMonth)
+1625   2                  {
+1626   3                      if(RTC_currentTimeDate.Hour > RTC_dstTimeDateStop.Hour)
+1627   3                      {
+1628   4                          RTC_statusDateTime &= ~RTC_STATUS_DST;
+1629   4                      }
+1630   3                  }
+1631   2                  else
+1632   2                  {
+1633   3                      /* Do nothing if current day of month is less than DST stop day of month */
+1634   3                  }
+1635   2              }
+1636   1              else
+1637   1              {
+1638   2                  /* Do nothing if current month is before than DST stop month */
+1639   2              }
+1640   1      
+1641   1              /* Clear DST start/stop statuses */
+1642   1              RTC_dstStartStatus = 0u;
+1643   1              RTC_dstStopStatus = 0u;
+1644   1      
+1645   1              /* Sets DST stop status month flag if DST stop month is equal to the 
+1646   1              * current month, otherwise clears that flag.
+1647   1              */
+1648   1              if(RTC_dstTimeDateStop.Month == RTC_currentTimeDate.Month)
+1649   1              {
+1650   2                  RTC_dstStopStatus |= RTC_DST_MONTH;
+1651   2              }
+1652   1              else
+1653   1              {
+1654   2                  RTC_dstStopStatus &= ~RTC_DST_MONTH;
+1655   2              }
+1656   1      
+1657   1              /* Sets DST start status month flag if DST start month is equal to the 
+1658   1              * current month, otherwise clears that flag.
+1659   1              */
+1660   1              if(RTC_dstTimeDateStart.Month == RTC_currentTimeDate.Month)
+1661   1              {
+1662   2                  RTC_dstStartStatus |= RTC_DST_MONTH;
+1663   2              }
+1664   1              else
+1665   1              {
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 28  
+
+1666   2                  RTC_dstStartStatus &= ~RTC_DST_MONTH;
+1667   2              }
+1668   1      
+1669   1              /* Sets DST stop status day of month flag if DST stop day of month is
+1670   1              * equal to the current day of month, otherwise clears that flag.
+1671   1              */        
+1672   1              if(RTC_dstTimeDateStop.DayOfMonth == RTC_currentTimeDate.DayOfMonth)
+1673   1              {
+1674   2                  RTC_dstStopStatus |= RTC_DST_DAYOFMONTH;
+1675   2              }
+1676   1              else
+1677   1              {
+1678   2                  RTC_dstStopStatus &= ~RTC_DST_DAYOFMONTH;
+1679   2              }
+1680   1      
+1681   1              /* Sets DST start status day of month flag if DST start day of month is
+1682   1              * equal to the current day of month, otherwise clears that flag.
+1683   1              */ 
+1684   1              if(RTC_dstTimeDateStart.DayOfMonth == RTC_currentTimeDate.DayOfMonth)
+1685   1              {
+1686   2                  RTC_dstStartStatus |= RTC_DST_DAYOFMONTH;
+1687   2              }
+1688   1              else
+1689   1              {
+1690   2                  RTC_dstStartStatus &= ~RTC_DST_DAYOFMONTH;
+1691   2              }
+1692   1      
+1693   1              /* Sets DST stop status hour flag if DST stop hour is equal to the
+1694   1              * current hour, otherwise clears that flag.
+1695   1              */   
+1696   1              if(RTC_dstTimeDateStop.Hour == RTC_currentTimeDate.Hour)
+1697   1              {
+1698   2                  RTC_dstStopStatus |= RTC_DST_HOUR;
+1699   2              }
+1700   1              else
+1701   1              {
+1702   2                  RTC_dstStopStatus &= ~RTC_DST_HOUR;
+1703   2              }
+1704   1      
+1705   1              /* Sets DST start status hour flag if DST start hour is equal to the
+1706   1              * current hour, otherwise clears that flag.
+1707   1              */   
+1708   1              if(RTC_dstTimeDateStart.Hour == RTC_currentTimeDate.Hour)
+1709   1              {
+1710   2                  RTC_dstStartStatus |= RTC_DST_HOUR;
+1711   2              }
+1712   1              else
+1713   1              {
+1714   2                  RTC_dstStartStatus &= ~RTC_DST_HOUR;
+1715   2              }
+1716   1      
+1717   1              /* DST Enable ? */
+1718   1              if(RTC_IS_BIT_SET(RTC_dstModeType, RTC_DST_ENABLE))
+1719   1              {
+1720   2                  if(RTC_IS_BIT_SET(RTC_statusDateTime,RTC_STATUS_DST))
+1721   2                  {
+1722   3                      if(RTC_IS_BIT_SET(RTC_dstStartStatus, \
+1723   3                                                     (RTC_DST_HOUR | RTC_DST_DAYOFMONTH | \
+1724   3                                                     RTC_DST_MONTH)))
+1725   3                      {
+1726   4                          /* Substruct current minutes value with minutes value, what
+1727   4                          * are out of full hour in DST offset.
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 29  
+
+1728   4                          */
+1729   4                          RTC_currentTimeDate.Min -= RTC_dstOffsetMin % \
+1730   4                                                              (RTC_HOUR_ELAPSED + 1u);
+1731   4                          
+1732   4                          /* If current minutes value is greater than number of 
+1733   4                          * minutes in hour - could be only if hour's value is negative
+1734   4                          */
+1735   4                          if(RTC_currentTimeDate.Min > RTC_HOUR_ELAPSED)
+1736   4                          {
+1737   5                              /* Adjust current minutes value. Convert to the positive. */
+1738   5                              RTC_currentTimeDate.Min = RTC_HOUR_ELAPSED - \
+1739   5                                                                  (~RTC_currentTimeDate.Min);
+1740   5                              
+1741   5                              /* Decrement current hours value. */
+1742   5                              RTC_currentTimeDate.Hour--;
+1743   5                          }
+1744   4      
+1745   4                          /* Substruct current hours value with hours value, what
+1746   4                          *  are full part of hours in DST offset.
+1747   4                          */
+1748   4                          RTC_currentTimeDate.Hour -= RTC_dstOffsetMin / \
+1749   4                                                               (RTC_HOUR_ELAPSED + 1u);
+1750   4      
+1751   4                          /* Check if current hour's value is negative */
+1752   4                          if(RTC_currentTimeDate.Hour > RTC_DAY_ELAPSED)
+1753   4                          {
+1754   5                              /* Adjust hour */
+1755   5                              RTC_currentTimeDate.Hour = RTC_DAY_ELAPSED - \
+1756   5                                                                  (~RTC_currentTimeDate.Hour);
+1757   5                              
+1758   5                              /* Decrement day of month, year and week */
+1759   5                              RTC_currentTimeDate.DayOfMonth--;
+1760   5                              RTC_currentTimeDate.DayOfYear--;
+1761   5                              RTC_currentTimeDate.DayOfWeek--;
+1762   5      
+1763   5                              if(0u == RTC_currentTimeDate.DayOfWeek)
+1764   5                              {
+1765   6                                  RTC_currentTimeDate.DayOfWeek = RTC_DAYS_IN_WEEK;
+1766   6                              }
+1767   5      
+1768   5                              if(0u == RTC_currentTimeDate.DayOfMonth)
+1769   5                              {
+1770   6                                  /* Decrement months value */
+1771   6                                  RTC_currentTimeDate.Month--;
+1772   6                                  
+1773   6                                  /* The current month is month before 1st one. */
+1774   6                                  if(0u == RTC_currentTimeDate.Month)
+1775   6                                  {
+1776   7                                      /* December is the month before January */
+1777   7                                      RTC_currentTimeDate.Month = RTC_DECEMBER;
+1778   7                                      RTC_currentTimeDate.DayOfMonth = \
+1779   7                                                  RTC_daysInMonths[RTC_currentTimeDate.Month - 1u];
+1780   7      
+1781   7                                      /* Decrement years value */
+1782   7                                      RTC_currentTimeDate.Year--;
+1783   7                                      if(1u == RTC_LEAP_YEAR(RTC_currentTimeDate.Year))
+1784   7                                      {
+1785   8                                          /* Set leap year status flag */
+1786   8                                          RTC_statusDateTime |= RTC_STATUS_LY;
+1787   8                                          RTC_currentTimeDate.DayOfYear = RTC_DAYS_IN_LEAP_YEAR;
+1788   8                                      }
+1789   7                                      else
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 30  
+
+1790   7                                      {
+1791   8                                          /* Clear leap year status flag */
+1792   8                                          RTC_statusDateTime &= ~RTC_STATUS_LY;
+1793   8                                          RTC_currentTimeDate.DayOfYear = RTC_DAYS_IN_YEAR;
+1794   8                                      }
+1795   7                                  }   /* 0u == RTC_currentTimeDate.Month */
+1796   6                                  else
+1797   6                                  {
+1798   7                                      RTC_currentTimeDate.DayOfMonth = \
+1799   7                                                  RTC_daysInMonths[RTC_currentTimeDate.Month - 1u];
+1800   7                                  }   /* 0u != End of RTC_currentTimeDate.Month */
+1801   6                              }   /* 0u == End of RTC_currentTimeDate.DayOfMonth */
+1802   5                          }   /* End of RTC_currentTimeDate.Hour > RTC_DAY_ELAPSED */
+1803   4                          
+1804   4                          /* Clear DST status flag */
+1805   4                          RTC_statusDateTime &= ~RTC_STATUS_DST;
+1806   4                          /* Clear DST stop status */
+1807   4                          RTC_dstStopStatus = 0u;
+1808   4                      }
+1809   3                  }
+1810   2                  else    /* Current time and date DO NOT match DST time and date */
+1811   2                  {
+1812   3                      if(RTC_IS_BIT_SET(RTC_dstStartStatus, RTC_DST_HOUR       | \
+1813   3                                                                                      RTC_DST_DAYOFMONTH | \
+1814   3                                                                                      RTC_DST_MONTH))  
+1815   3                      {
+1816   4                          /* Add Hour and Min */
+1817   4                          RTC_currentTimeDate.Min += \
+1818   4                                                      RTC_dstOffsetMin % (RTC_HOUR_ELAPSED + 1u);
+1819   4      
+1820   4                          if(RTC_currentTimeDate.Min > RTC_HOUR_ELAPSED)
+1821   4                          {
+1822   5                              /* Adjust Min */
+1823   5                              RTC_currentTimeDate.Min -= (RTC_HOUR_ELAPSED + 1u);
+1824   5                              RTC_currentTimeDate.Hour++;
+1825   5                          }
+1826   4      
+1827   4                          RTC_currentTimeDate.Hour += \
+1828   4                                                      RTC_dstOffsetMin / (RTC_HOUR_ELAPSED + 1u);
+1829   4                          if(RTC_currentTimeDate.Hour > RTC_DAY_ELAPSED)
+1830   4                          {
+1831   5                              /* Adjust hour, add day */
+1832   5                              RTC_currentTimeDate.Hour -= (RTC_DAY_ELAPSED + 1u);
+1833   5                              RTC_currentTimeDate.DayOfMonth++;
+1834   5                              RTC_currentTimeDate.DayOfYear++;
+1835   5                              RTC_currentTimeDate.DayOfWeek++;
+1836   5      
+1837   5                              if(RTC_currentTimeDate.DayOfWeek > RTC_WEEK_ELAPSED)
+1838   5                              {
+1839   6                                  RTC_currentTimeDate.DayOfWeek = 1u;
+1840   6                              }
+1841   5      
+1842   5                              if(RTC_currentTimeDate.DayOfMonth > \
+1843   5                                                  RTC_daysInMonths[RTC_currentTimeDate.Month - 1u])
+1844   5                              {
+1845   6                                  RTC_currentTimeDate.Month++;
+1846   6                                  RTC_currentTimeDate.DayOfMonth = 1u;
+1847   6                                  
+1848   6                                  /* Has new year come? */
+1849   6                                  if(RTC_currentTimeDate.Month > RTC_YEAR_ELAPSED)
+1850   6                                  {
+1851   7                                      /* Set first month of the year */
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 31  
+
+1852   7                                      RTC_currentTimeDate.Month = RTC_JANUARY;
+1853   7                                      
+1854   7                                      /* Increment year */
+1855   7                                      RTC_currentTimeDate.Year++;
+1856   7                                      
+1857   7                                      /* Update leap year status */
+1858   7                                      if(1u == RTC_LEAP_YEAR(RTC_currentTimeDate.Year))
+1859   7                                      {
+1860   8                                          /* LP - true, else - false */
+1861   8                                          RTC_statusDateTime |= RTC_STATUS_LY;
+1862   8                                      }
+1863   7                                      else
+1864   7                                      {
+1865   8                                          RTC_statusDateTime &= ~RTC_STATUS_LY;
+1866   8                                      }
+1867   7                                      
+1868   7                                      /* Set day of year to the first one */
+1869   7                                      RTC_currentTimeDate.DayOfYear = 1u;
+1870   7                                  }
+1871   6                              }
+1872   5                          }
+1873   4                          RTC_statusDateTime |= RTC_STATUS_DST;
+1874   4                          RTC_dstStartStatus = 0u;
+1875   4                      }
+1876   3                  }
+1877   2              }
+1878   1          #endif /* 1u == RTC_DST_FUNC_ENABLE */
+1879   1      
+1880   1          /* Set AM/PM flag */
+1881   1          if(RTC_currentTimeDate.Hour < RTC_HALF_OF_DAY_ELAPSED)
+1882   1          {
+1883   2              /* AM Hour 00:00-11:59, flag zero */
+1884   2              RTC_statusDateTime &= ~RTC_STATUS_AM_PM;
+1885   2          }
+1886   1          else
+1887   1          {
+1888   2              /* PM Hour 12:00 - 23:59, flag set */
+1889   2              RTC_statusDateTime |= RTC_STATUS_AM_PM;
+1890   2          }
+1891   1      
+1892   1          /* Alarm calculation */
+1893   1      
+1894   1          /* Alarm SEC */
+1895   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask,RTC_ALARM_SEC_MASK))
+1896   1          {
+1897   2              if(RTC_alarmCfgTimeDate.Sec == RTC_currentTimeDate.Sec)
+1898   2              {
+1899   3                  /* Set second alarm */
+1900   3                  RTC_alarmCurStatus |= RTC_ALARM_SEC_MASK;
+1901   3              }
+1902   2              else
+1903   2              {
+1904   3                  /* Clear second alarm */
+1905   3                  RTC_alarmCurStatus &= ~RTC_ALARM_SEC_MASK;
+1906   3              }
+1907   2          }
+1908   1      
+1909   1          /* Alarm MIN */
+1910   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask, RTC_ALARM_MIN_MASK))
+1911   1          {
+1912   2              if(RTC_alarmCfgTimeDate.Min == RTC_currentTimeDate.Min)
+1913   2              {
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 32  
+
+1914   3                  /* Set minute alarm */
+1915   3                  RTC_alarmCurStatus |= RTC_ALARM_MIN_MASK;
+1916   3              }
+1917   2              else
+1918   2              {
+1919   3                  /* Clear minute alarm */
+1920   3                  RTC_alarmCurStatus &= ~RTC_ALARM_MIN_MASK;
+1921   3              }
+1922   2          }
+1923   1      
+1924   1          /* Alarm HOUR */
+1925   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask, RTC_ALARM_HOUR_MASK))
+1926   1          {
+1927   2              if(RTC_alarmCfgTimeDate.Hour == RTC_currentTimeDate.Hour)
+1928   2              {
+1929   3                  /* Set hour alarm */
+1930   3                  RTC_alarmCurStatus |= RTC_ALARM_HOUR_MASK;
+1931   3              }
+1932   2              else
+1933   2              {
+1934   3                  /* Clear hour alarm */
+1935   3                  RTC_alarmCurStatus &= ~RTC_ALARM_HOUR_MASK;
+1936   3              }
+1937   2          }
+1938   1      
+1939   1          /* Alarm DAYOFWEEK */
+1940   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask, RTC_ALARM_DAYOFWEEK_MASK))
+1941   1          {
+1942   2              if(RTC_alarmCfgTimeDate.DayOfWeek == RTC_currentTimeDate.DayOfWeek)
+1943   2              {
+1944   3                  /* Set day of week alarm */
+1945   3                  RTC_alarmCurStatus |= RTC_ALARM_DAYOFWEEK_MASK;
+1946   3              }
+1947   2              else
+1948   2              {
+1949   3                  /* Clear day of week alarm */
+1950   3                  RTC_alarmCurStatus &= ~RTC_ALARM_DAYOFWEEK_MASK;
+1951   3              }
+1952   2          }
+1953   1      
+1954   1          /* Alarm DAYOFYEAR */
+1955   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask, RTC_ALARM_DAYOFYEAR_MASK))
+1956   1          {
+1957   2              if(RTC_alarmCfgTimeDate.DayOfYear == RTC_currentTimeDate.DayOfYear)
+1958   2              {
+1959   3                  /* Set day of year alarm */
+1960   3                  RTC_alarmCurStatus |= RTC_ALARM_DAYOFYEAR_MASK;
+1961   3              }
+1962   2              else
+1963   2              {
+1964   3                  /* Clear day of year alarm */
+1965   3                  RTC_alarmCurStatus &= ~RTC_ALARM_DAYOFYEAR_MASK;
+1966   3              }
+1967   2          }
+1968   1      
+1969   1          /* Alarm DAYOFMONTH */
+1970   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask, RTC_ALARM_DAYOFMONTH_MASK))
+1971   1          {
+1972   2              if (RTC_alarmCfgTimeDate.DayOfMonth == RTC_currentTimeDate.DayOfMonth)
+1973   2              {
+1974   3                  /* Set day of month alarm */
+1975   3                  RTC_alarmCurStatus |= RTC_ALARM_DAYOFMONTH_MASK;
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 33  
+
+1976   3              }
+1977   2                 else
+1978   2              {
+1979   3                  /* Clear day of month alarm */
+1980   3                  RTC_alarmCurStatus &= ~RTC_ALARM_DAYOFMONTH_MASK;
+1981   3              }
+1982   2          }
+1983   1      
+1984   1          /* Alarm MONTH */
+1985   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask, RTC_ALARM_MONTH_MASK))
+1986   1          {
+1987   2              if(RTC_alarmCfgTimeDate.Month == RTC_currentTimeDate.Month)
+1988   2              {
+1989   3                  /* Set month alarm */
+1990   3                  RTC_alarmCurStatus |= RTC_ALARM_MONTH_MASK;
+1991   3              }
+1992   2              else
+1993   2              {
+1994   3                  /* Clear month alarm */
+1995   3                  RTC_alarmCurStatus &= ~RTC_ALARM_MONTH_MASK;
+1996   3              }
+1997   2          }
+1998   1      
+1999   1          /* Alarm YEAR */
+2000   1          if(RTC_IS_BIT_SET(RTC_alarmCfgMask, RTC_ALARM_YEAR_MASK))
+2001   1          {
+2002   2              if(RTC_alarmCfgTimeDate.Year == RTC_currentTimeDate.Year)
+2003   2              {
+2004   3                  /* Set year alarm */
+2005   3                  RTC_alarmCurStatus |= RTC_ALARM_YEAR_MASK;
+2006   3              }
+2007   2              else
+2008   2              {
+2009   3                  /* Clear year alarm */
+2010   3                  RTC_alarmCurStatus &= ~RTC_ALARM_YEAR_MASK;
+2011   3              }
+2012   2          }
+2013   1      
+2014   1          /* Set Alarm flag event */
+2015   1          RTC_SET_ALARM(RTC_alarmCfgMask,   \
+2016   1                                     RTC_alarmCurStatus, \
+2017   1                                     RTC_statusDateTime);
+2018   1      }
+2019          
+2020          
+2021          #if (1u == RTC_DST_FUNC_ENABLE)
+2022              /*******************************************************************************
+2023              * Function Name:   RTC_WriteDSTMode
+2024              ********************************************************************************
+2025              *
+2026              * Summary:
+2027              *  Writes the DST mode software register. That enables or disables DST changes
+2028              *  and sets the date mode to fixed date or relative date. Only generated if DST
+2029              *  enabled.
+2030              *
+2031              * Parameters:
+2032              *  mode: DST Mode software register value.
+2033              *
+2034              * Return:
+2035                  *  None.
+2036              *
+2037                  * Global variables:
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 34  
+
+2038                  *  RTC_dstModeType: global variable is modified with the new
+2039                  *  DST mode type: relative or fixed.
+2040              *
+2041              *  RTC_dstTimeDateStart.Month, 
+2042              *  RTC_dstTimeDateStart.DayOfWeek,
+2043              *  RTC_dstTimeDateStart.Week:
+2044              *  RTC_dstTimeDateStop.Month,
+2045              *  RTC_dstTimeDateStop.DayOfWeek,
+2046              *  RTC_dstTimeDateStop.Week,
+2047                  *  RTC_currentTimeDate.Year: for the day of week correction,
+2048              *   they are used by RTC_DSTDateConversion() function if DST
+2049              *   mode is configured to be relative.
+2050              *
+2051              *  RTC_dstTimeDateStart.DayOfMonth,
+2052              *  RTC_dstTimeDateStop.DayOfMonth: updated after convertion by 
+2053              *  the RTC_DSTDateConversion() function if DST mode is 
+2054              *  configured to be relative.
+2055                  *
+2056              * Reentrant:
+2057              *  No.
+2058              *
+2059              *******************************************************************************/
+2060              void RTC_WriteDSTMode(uint8 mode) 
+2061              {
+2062   1              /* Set DST mode */
+2063   1              RTC_dstModeType = mode;
+2064   1              
+2065   1              if(RTC_IS_BIT_SET(mode,RTC_DST_RELDATE))
+2066   1              {
+2067   2                  /* Convert DST date */
+2068   2                  RTC_DSTDateConversion();
+2069   2              }
+2070   1          }
+2071          
+2072          
+2073              /*******************************************************************************
+2074              * Function Name:   RTC_WriteDSTStartHour
+2075              ********************************************************************************
+2076              *
+2077              * Summary:
+2078              *  Writes the DST Start Hour software register. Used for absolute date entry.
+2079              *  Only generated if DST enabled.
+2080              *
+2081              * Parameters:
+2082              *  hour: DST Start Hour software register value.
+2083              *
+2084              * Return:
+2085              *  None. 
+2086              *
+2087                  * Global variables:
+2088                  *  RTC_dstTimeDateStart.Hour: global variable is modified with
+2089                  *  the new value. 
+2090                  *
+2091              * Reentrant:
+2092              *  No.
+2093              *
+2094              *******************************************************************************/
+2095              void RTC_WriteDSTStartHour(uint8 hour) 
+2096              {
+2097   1              /* Set DST Start Hour */
+2098   1              RTC_dstTimeDateStart.Hour = hour;
+2099   1          }
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 35  
+
+2100          
+2101          
+2102              /*******************************************************************************
+2103              * Function Name:   RTC_WriteDSTStartOfMonth
+2104              ********************************************************************************
+2105              *
+2106              * Summary:
+2107              *  Writes the DST Start DayOfMonth software register. Used for absolute date
+2108              *  entry. Only generated if DST enabled.
+2109              *
+2110              * Parameters:
+2111              *  dayOfMonth: DST Start DayOfMonth software register value.
+2112              *
+2113              * Return:
+2114              *  None. 
+2115              *
+2116                  * Global variables:
+2117                  *  RTC_dstTimeDateStart.DayOfMonth: global variable is modified
+2118                  *  with the new value. 
+2119                  *
+2120              * Reentrant:
+2121              *  No.
+2122              *
+2123              *******************************************************************************/
+2124              void RTC_WriteDSTStartDayOfMonth(uint8 dayOfMonth) 
+2125              {
+2126   1              /* Set DST Start day of month */
+2127   1              RTC_dstTimeDateStart.DayOfMonth = dayOfMonth;
+2128   1          }
+2129          
+2130          
+2131              /*******************************************************************************
+2132              * Function Name:   RTC_WriteDSTStartMonth
+2133              ********************************************************************************
+2134              *
+2135              * Summary:
+2136              *  Writes the DST Start Month software register. Used for absolute date entry.
+2137              *  Only generated if DST enabled.
+2138              *
+2139              * Parameters:
+2140              *  month: DST Start month software register value.
+2141              *
+2142              * Return:
+2143                  *  None.
+2144              *
+2145                  * Global variables:
+2146                  *  RTC_dstTimeDateStart.Month: global variable is modified
+2147                  *  with the new value. 
+2148                  *
+2149              * Reentrant:
+2150              *  No.
+2151              *
+2152              *******************************************************************************/
+2153              void RTC_WriteDSTStartMonth(uint8 month) 
+2154              {
+2155   1              /* Set DST Start month */
+2156   1              RTC_dstTimeDateStart.Month = month;
+2157   1          }
+2158          
+2159          
+2160              /*******************************************************************************
+2161              * Function Name:   RTC_WriteDSTStartDayOfWeek
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 36  
+
+2162              ********************************************************************************
+2163              *
+2164              * Summary:
+2165              *  Writes the DST Start DayOfWeek software register. Used for absolute date
+2166              *  entry. Only generated if DST enabled.
+2167              *
+2168              * Parameters:
+2169              *  dayOfWeek: DST start day of week software register value.
+2170              *
+2171              * Return:
+2172                  *  None.
+2173              *
+2174                  * Global variables:
+2175              *  RTC_dstModeType: global variable, where DST mode type:
+2176              *  relative or fixed is stored.
+2177              *
+2178              *  RTC_dstTimeDateStart.Month, 
+2179              *  RTC_dstTimeDateStart.DayOfWeek,
+2180              *  RTC_dstTimeDateStart.Week,
+2181                  *  RTC_dstTimeDateStop.Month,
+2182              *  RTC_dstTimeDateStop.DayOfWeek,
+2183              *  RTC_dstTimeDateStop.Week: for the day of week correction,
+2184              *   they are used by RTC_DSTDateConversion() function if DST
+2185              *   mode is configured to be relative.
+2186              *
+2187              *  RTC_currentTimeDate.Year: for the day of week calculation,
+2188              *   it is used by RTC_DSTDateConversion() function if DST
+2189              *   mode is configured to be relative. 
+2190                  *
+2191                  *  RTC_dstTimeDateStart.DayOfWeek: global variable is modified
+2192              *  with the new day of week value.
+2193              *
+2194              *  RTC_dstTimeDateStart.DayOfMonth and
+2195              *  RTC_dstTimeDateStop.DayOfMonth are modified by 
+2196              *  the RTC_DSTDateConversion() function if DST mode is 
+2197              *  configured to be relative.
+2198                  *
+2199              * Reentrant:
+2200              *  No.
+2201              *
+2202              *******************************************************************************/
+2203              void RTC_WriteDSTStartDayOfWeek(uint8 dayOfWeek) 
+2204              {
+2205   1              /* Set DST Start day of week */
+2206   1              RTC_dstTimeDateStart.DayOfWeek = dayOfWeek;
+2207   1              
+2208   1              if(RTC_IS_BIT_SET(RTC_dstModeType,RTC_DST_RELDATE))
+2209   1              {
+2210   2                  /* Convert DST date */
+2211   2                  RTC_DSTDateConversion();
+2212   2              }
+2213   1          }
+2214          
+2215          
+2216              /*******************************************************************************
+2217              * Function Name:   RTC_WriteDSTStartWeek
+2218              ********************************************************************************
+2219              *
+2220              * Summary:
+2221              *  Writes the DST Start Week software register. Used for absolute date entry.
+2222              *  Only generated if DST enabled.
+2223              *
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 37  
+
+2224              * Parameters:
+2225              *  week: DST start week software register value.
+2226              *
+2227              * Return:
+2228              *  None.
+2229              *
+2230                  * Global variables:
+2231              *  RTC_dstTimeDateStart.Week: global variable is modified with
+2232              *   the new week's value of the DST start time/date.
+2233              *
+2234              *  RTC_dstTimeDateStart.DayOfMonth,
+2235              *  RTC_dstTimeDateStop.DayOfMonth: is modified after convertion
+2236              *  by the RTC_DSTDateConversion() function if DST mode is 
+2237              *  configured to be relative.
+2238              *
+2239              *  RTC_dstModeType: global variable is used for theDST mode
+2240              *   type: relative or fixed store.
+2241              *
+2242              *  RTC_dstTimeDateStart.Month, 
+2243              *  RTC_dstTimeDateStart.DayOfWeek,
+2244              *  RTC_dstTimeDateStart.Week: for the day of week correction,
+2245              *   they are used by RTC_DSTDateConversion() function if DST
+2246              *   mode is configured to be relative.
+2247              *
+2248              *  RTC_dstTimeDateStop.Month,
+2249              *  RTC_dstTimeDateStop.DayOfWeek,
+2250              *  RTC_dstTimeDateStop.Week: for the day of week correction,
+2251              *   they are used by RTC_DSTDateConversion() function if DST
+2252              *   mode is configured to be relative.
+2253              *
+2254              *  RTC_currentTimeDate.Year: for the day of week calculation,
+2255              *   it is used by RTC_DSTDateConversion() function if DST
+2256              *   mode is configured to be relative.    
+2257                  *
+2258              * Reentrant:
+2259              *  No.
+2260              *
+2261              *******************************************************************************/
+2262              void RTC_WriteDSTStartWeek(uint8 week) 
+2263              {
+2264   1              /* Set DST Start week */
+2265   1              RTC_dstTimeDateStart.Week = week;
+2266   1              
+2267   1              if(RTC_IS_BIT_SET(RTC_dstModeType,RTC_DST_RELDATE))
+2268   1              {
+2269   2                  /* Convert DST date */
+2270   2                  RTC_DSTDateConversion();
+2271   2              }
+2272   1          }
+2273          
+2274          
+2275              /*******************************************************************************
+2276              * Function Name:   RTC_WriteDSTStopHour
+2277              ********************************************************************************
+2278              *
+2279              * Summary:
+2280              *  Writes the DST Stop Hour software register. Used for absolute date entry.
+2281              *  Only generated if DST enabled.
+2282              *
+2283              * Parameters:
+2284              *  hour: DST stop hour software register value.
+2285              *
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 38  
+
+2286              * Return:
+2287              *  None.
+2288              *
+2289                  * Global variables:
+2290                  *  RTC_dstTimeDateStart.Hour: global variable is modified with the new hour
+2291              *   of the DST start time/date.
+2292                  *
+2293              * Reentrant:
+2294              *  No.
+2295              *
+2296              *******************************************************************************/
+2297              void RTC_WriteDSTStopHour(uint8 hour) 
+2298              {
+2299   1              /* Set DST Stop hour */
+2300   1              RTC_dstTimeDateStop.Hour = hour;
+2301   1          }
+2302          
+2303          
+2304              /*******************************************************************************
+2305              * Function Name:   RTC_WriteDSTStopDayOfMonth
+2306              ********************************************************************************
+2307              *
+2308              * Summary:
+2309              *  Writes the DST Stop DayOfMonth software register. Used for absolute date
+2310              *  entry. Only generated if DST enabled.
+2311              *
+2312              * Parameters:
+2313              *  dayOfMonth: DST stop day of month software register value.
+2314              *
+2315              * Return:
+2316              *  None.
+2317              *
+2318                  * Global variables:
+2319              *  RTC_dstTimeDateStop.DayOfMonth: global variable is modified
+2320              *  where new day of month's value of the DST stop time/date. 
+2321                  *
+2322              * Reentrant:
+2323              *  No.
+2324              *
+2325              *******************************************************************************/
+2326              void RTC_WriteDSTStopDayOfMonth(uint8 dayOfMonth) 
+2327              {
+2328   1              /* Set DST Start day of month */
+2329   1              RTC_dstTimeDateStop.DayOfMonth = dayOfMonth;
+2330   1          }
+2331          
+2332          
+2333              /*******************************************************************************
+2334              * Function Name:   RTC_WriteDSTStopMonth
+2335              ********************************************************************************
+2336              *
+2337              * Summary:
+2338              *  Writes the DST Stop Month software  register. Used for absolute date entry.
+2339              *  Only generated if DST enabled.
+2340              *
+2341              * Parameters:
+2342              *  month: DST Stop Month software register value.
+2343              *
+2344              * Return:
+2345              *  None.
+2346              *
+2347                  * Global variables:
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 39  
+
+2348              *  RTC_dstTimeDateStop.Month: global variable is modified with
+2349              *   the new month of the DST stop time/date.
+2350                  *
+2351              * Reentrant:
+2352              *  No.
+2353              *
+2354              *******************************************************************************/
+2355              void RTC_WriteDSTStopMonth(uint8 month) 
+2356              {
+2357   1              /* Set DST Stop month */
+2358   1              RTC_dstTimeDateStop.Month = month;
+2359   1          }
+2360          
+2361          
+2362              /*******************************************************************************
+2363              * Function Name:   RTC_WriteDSTStopDayOfWeek
+2364              ********************************************************************************
+2365              *
+2366              * Summary:
+2367              *  Writes the DST Stop DayOfWeek software register. Used for relative date
+2368              *  entry. Only generated if DST enabled.
+2369              *
+2370              * Parameters:
+2371              *  dayOfWeek: DST stop day of week software register value.
+2372              *
+2373              * Return:
+2374              *  None.
+2375              *
+2376                  * Global variables:
+2377                  *  RTC_dstTimeDateStop.DayOfWeek: global variable is modified
+2378              *   with the day of week of the DST stop time/date.
+2379              *
+2380              *  RTC_dstModeType: global variable is used to store DST mode
+2381              *   type: relative or fixed.
+2382              *
+2383              *  RTC_dstTimeDateStart.Month, 
+2384              *  RTC_dstTimeDateStart.DayOfWeek,
+2385              *  RTC_dstTimeDateStart.Week,
+2386                  *  RTC_dstTimeDateStop.Month,
+2387              *  RTC_dstTimeDateStop.DayOfWeek,
+2388              *  RTC_dstTimeDateStop.Weekfor the day of week correction,
+2389              *   they are used by RTC_DSTDateConversion() function if DST
+2390              *   mode is configured to be relative.
+2391              *
+2392              *  RTC_currentTimeDate.Year: for the day of week calculation,
+2393              *   it is used by RTC_DSTDateConversion() function if DST
+2394              *   mode is configured to be relative.
+2395                  *
+2396                  *  RTC_dstTimeDateStop.DayOfWeek: global variable is modified
+2397              *  with the new day of week's value.
+2398              *
+2399              *  RTC_dstTimeDateStart.DayOfMonth and
+2400              *  RTC_dstTimeDateStop.DayOfMonth are modified by 
+2401              *  the RTC_DSTDateConversion() function if DST mode is 
+2402              *  configured to be relative.
+2403                  *
+2404              * Reentrant:
+2405              *  No.
+2406              *
+2407              *******************************************************************************/
+2408              void RTC_WriteDSTStopDayOfWeek(uint8 dayOfWeek) 
+2409              {
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 40  
+
+2410   1              /* Set DST Stop day of week */
+2411   1              RTC_dstTimeDateStop.DayOfWeek = dayOfWeek;
+2412   1              
+2413   1              if(RTC_IS_BIT_SET(RTC_dstModeType,RTC_DST_RELDATE))
+2414   1              {
+2415   2                  /* Convert DST date */
+2416   2                  RTC_DSTDateConversion();
+2417   2              }
+2418   1          }
+2419          
+2420          
+2421              /*******************************************************************************
+2422              * Function Name:   RTC_WriteDSTStopWeek
+2423              ********************************************************************************
+2424              *
+2425              * Summary:
+2426              *  Writes the DST Stop Week software register. Used for relative date entry.
+2427              *  Only generated if DST enabled.
+2428              *
+2429              * Parameters:
+2430              *  week: DST stop week software register value.
+2431              *
+2432              * Return:
+2433                  *  None.
+2434              *
+2435                  * Global variables:
+2436                  *  RTC_dstTimeDateStop.Week: global variable used to store the
+2437                  *  DST stop time/date is stored.
+2438              *
+2439              *  RTC_dstModeType: global variable is used to store DST mode
+2440              *   type: relative or fixed.
+2441              *
+2442              *  RTC_dstTimeDateStart.Month, 
+2443              *  RTC_dstTimeDateStart.DayOfWeek,
+2444              *  RTC_dstTimeDateStart.Week,
+2445                  *  RTC_dstTimeDateStop.Month,
+2446              *  RTC_dstTimeDateStop.DayOfWeek,
+2447              *  RTC_dstTimeDateStop.Week: used for the day of week correction,
+2448              *   they are used by RTC_DSTDateConversion() function if DST
+2449              *   mode is configured to be relative.
+2450              *
+2451              *  RTC_currentTimeDate.Year: for the day of week calculation,
+2452              *   it is used by RTC_DSTDateConversion() function if DST
+2453              *   mode is configured to be relative. 
+2454                  *
+2455                  *  RTC_dstTimeDateStop.Week: global variable is modified with
+2456              *  the new value.
+2457              *
+2458              *  RTC_dstTimeDateStart.DayOfMonth and 
+2459              *  RTC_dstTimeDateStop.DayOfMonth are modified by 
+2460              *  the RTC_DSTDateConversion() function if DST mode is 
+2461              *  configured to be relative.
+2462                  *
+2463              * Reentrant:
+2464              *  No.
+2465              *
+2466              *******************************************************************************/
+2467              void RTC_WriteDSTStopWeek(uint8 week) 
+2468              {
+2469   1              /* Set DST Stop week */
+2470   1              RTC_dstTimeDateStop.Week = week;
+2471   1              
+C51 COMPILER V9.03   RTC                                                                   03/09/2016 17:02:32 PAGE 41  
+
+2472   1              if(RTC_IS_BIT_SET(RTC_dstModeType,RTC_DST_RELDATE))
+2473   1              {
+2474   2                  /* Convert DST date */
+2475   2                  RTC_DSTDateConversion();
+2476   2              }
+2477   1          }
+2478          
+2479          
+2480              /*******************************************************************************
+2481              * Function Name:   RTC_WriteDSTOffset
+2482              ********************************************************************************
+2483              *
+2484              * Summary:
+2485              *  Writes the DST Offset register. Allows a configurable incrementor decrement
+2486              *  of time between 0 and 255 minutes. Increment occures on DST Start and
+2487              *  decrement on DST Stop. Only generated if DST enabled.
+2488              *
+2489              * Parameters:
+2490              *  offset: The DST offset to be saved.
+2491              *
+2492              * Return:
+2493              *  None.
+2494              *
+2495                  * Global variables:
+2496                  *  RTC_dstOffsetMin: global variable is modified with the new
+2497              *  DST offset value (in minutes).
+2498                  *
+2499              * Reentrant:
+2500              *  No.
+2501              *
+2502              *******************************************************************************/
+2503              void RTC_WriteDSTOffset(uint8 offset) 
+2504              {
+2505   1              /* Set DST offset */
+2506   1              RTC_dstOffsetMin = offset;
+2507   1          }
+2508          
+2509          #endif /* 1u == RTC_DST_FUNC_ENABLE */
+2510          
+2511          
+2512          /* [] END OF FILE */
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2931    ----
+   CONSTANT SIZE    =     24    ----
+   XDATA SIZE       =     39      10
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
